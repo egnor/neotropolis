@@ -1,0 +1,36 @@
+[project]
+authors = [{ name = "Dan Egnor", email = "egnor@ofb.net" }]
+dependencies = [
+    "matplotlib>=3.10.8",
+    "odrive>=0.6.10.post0",
+]
+description = "Neotropolis project code"
+name = "neo"
+readme = "README.md"
+requires-python = ">=3.12"
+version = "0.0"
+
+[build-system]
+requires = ["uv_build>=0.9.13,<0.10.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = ["black", "grip", "mypy", "pdoc", "ruff"]
+
+[tool.black]
+line-length = 80
+
+[tool.mypy]
+exclude_gitignore = true
+files = "."
+
+[tool.pytest]
+asyncio_mode = "auto"
+log_level = "CRITICAL"
+strict = true
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.uv.build-backend]
+module-root = ""
