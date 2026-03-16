@@ -1,2 +1,2 @@
 # neotropolis
-misc Neotropolis-related things
+egnor's Neotropolis-related things
