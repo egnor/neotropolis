@@ -24,18 +24,30 @@ Onboard power, propulsion, and control
 - [Raspberry Pi 5](https://www.raspberrypi.com/products/raspberry-pi-5/)
 - [ODrive USB-CAN adapter](https://shop.odriverobotics.com/products/usb-can-adapter)
 
-Remote control (operator to trashbot)
+Remote control link (operator to trashbot, bidirectional)
 
-- LoRa radio ???
-- MAYBE: [Adafruit LoRa Radio Bonnet](https://www.adafruit.com/product/4074)
-- MAYBE: [Waveshare USB to LoRA](https://www.waveshare.com/usb-to-lora.htm)
-- MAYBE: [WaveShare LoRaWAN Node Module for Raspberry Pi](https://www.waveshare.com/sx1262-lorawan-hat.htm)
-- MAYBE: [WaveShare LoRa HAT for Raspberry Pi](https://www.waveshare.com/sx1262-868m-lora-hat.htm)
-- OTHER: PineDio USB LoRa, RangePi, LoStik, xDot, Dragino, etc.
-- ref: [ExpressLRS](https://www.expresslrs.org/) (uses LoRa?)
-- ref: [LoRa RC Controller using Arduino](https://www.electroniclinic.com/lora-rc-controller-using-arduino/)
-- ref: [LoRa and LoRaWAN Radio for Raspberry Pi](https://learn.adafruit.com/lora-and-lorawan-radio-for-raspberry-pi)
-- ref: https://github.com/Boyyt357/DIY-LoRa-Long-Range-RC-Control-System-TX-RX-
+- [ExpressLRS](https://www.expresslrs.org/) over LoRa, using
+  [CRSF protocol](https://github.com/tbs-fpv/tbs-crsf-spec/blob/main/crsf.md)
+  (16ch 11-bit @ up to 200Hz, plus telemetry return)
+- [RadioMaster Nomad Dual 1W Gemini Xrossband](https://radiomasterrc.com/products/nomad-dual-1w-gemini-xrossband-elrs-rf-module)
+  TX module (2x LR1121, simultaneous 2.4GHz + 900MHz, 1W, ~$58)
+- [RadioMaster DBR4](https://radiomasterrc.com/products/dbr4-dual-band-xross-gemini-receiver)
+  dual-band Gemini Xrossband RX (2x LR1121, 100mW telemetry, ~$39)
+- TX module connects to operator Pi via USB-C (remapped to CRSF I/O,
+  full-duplex; configure at `elrs_tx.local/hardware.html`).
+  Needs external 7-13V power for the RF PA.
+- RX module connects to robot Pi via UART (separate TX/RX pins, 3.3V TTL,
+  420kbaud on `/dev/ttyAMA0` with `dtoverlay=uart0-pi5`).
+  Powered from robot 5V rail.
+- Operator Pi reads gamepad + StreamDeck, maps to CRSF channels, sends
+  to TX module. Robot Pi decodes channels into motor/emoji/lighting commands.
+- Telemetry (battery, RSSI, link quality) flows back via CRSF return path.
+- DEV/TEST: [RadioMaster Pocket](https://radiomasterrc.com/products/pocket-radio-controller)
+  (ELRS 900MHz) for testing RX independently before Pi integration
+- ref: [Devana Project: send commands from Pi](https://thedevanaproject.com/2025/01/27/how-to-send-rc-commands-with-a-raspberry-pi-and-elrs-transmitter-module/)
+- ref: [Devana Project: decode commands on Pi](https://thedevanaproject.com/2025/01/20/how-to-decode-rc-commands-from-an-elrs-receiver-module-with-a-raspberry-pi/)
+- ref: [crsf-parser Python library](https://github.com/AlessioMorale/crsf_parser)
+- ref: [elrs-joystick-control (USB CRSF)](https://github.com/kaack/elrs-joystick-control)
 
 Remote video (trashbot to operator)
 
@@ -50,17 +62,26 @@ Remote video (trashbot to operator)
 Operator control station
 
 - [Raspberry Pi 5](https://www.raspberrypi.com/products/raspberry-pi-5/)
-- HDMI TV
-- Analog (CVBS) to HDMI converter
-- [8BitDo Pro 3](https://www.8bitdo.com/pro3/) game controller
+- HDMI TV for video feed
+- Analog (CVBS) to HDMI converter (for 1.3GHz analog video)
+- Second display or StreamDeck keys for status (battery, RSSI, link quality)
+- USB gamepad (TBD, something with cyberpunk aesthetic; not a standard RC
+  controller). Control mapping happens on operator Pi, not robot side.
 - 2x [StreamDeck XL](https://www.elgato.com/us/en/p/stream-deck-plus-xl) for
-  emoji selection
+  emoji selection, lighting control, and other aux functions
+- ref: [streamdeck Python library](https://github.com/abcminiuser/python-elgato-streamdeck)
 
 Open Questions
 
-- RANGE: How far can this thing go? Just around the megablock, or can it roam
-  the city? More is better obviously.
+- RANGE: ELRS Gemini Xrossband should give 1-3km+ even at ground level in a
+  crowded RF environment. Probably fine for around the megablock; roaming the
+  city would need real-world testing. WiFi is not needed for the control link.
 - WIFI: Another faction is promising an enterprise-grade WiFi deployment, but
-  it's not clear they'll come through, or that it would perform well
-- OPERATOR UX: What does the control station look like?
+  it's not clear they'll come through, or that it would perform well. Not
+  needed for control or video (both have dedicated radio links), but could be
+  useful for software updates, monitoring, or a secondary data channel.
+- OPERATOR UX: What does the control station look like? What gamepad?
 - EMOJI PANELS: What are they? HUB75? HDMI screens? Where are they mounted?
+- NOMAD AVAILABILITY: RadioMaster Nomad Dual is out of stock at some retailers.
+  Fallback: BetaFPV Micro TX V2 900MHz ($60, 2W, SX1262) with GEPRC PA500 RX
+  ($26, 500mW telemetry) -- single-band 900MHz only but still excellent range.
