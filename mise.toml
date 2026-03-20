@@ -7,7 +7,12 @@ experimental = true
 python.uv_venv_auto = true
 
 [hooks]
-postinstall = "uv sync"
+postinstall = '''
+  cd {{config_root}} &&
+  git lfs install --local &&
+  git lfs pull &&
+  uv sync
+'''
 
 [tasks]
 check = ["uv sync", "black --check .", "ruff check", "mypy", "pytest"]

@@ -3,6 +3,7 @@ authors = [{ name = "Dan Egnor", email = "egnor@ofb.net" }]
 dependencies = [
     "matplotlib>=3.10.8",
     "odrive>=0.6.10.post0",
+    "python-can>=4.6.1",
 ]
 description = "Neotropolis project code"
 name = "neo"
