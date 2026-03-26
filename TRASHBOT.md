@@ -52,7 +52,7 @@ Remote control link (operator to trashbot, bidirectional)
 Remote video (trashbot to operator)
 
 - [8W 1.3GHz analog VTX/VRX](https://www.kimpok.com/sale-51038869-1-2g-1-3g-fpv-vrx-vtx-8w-wireless-video-receiver-and-transmitter-long-range-transmission.html)
-- [Foxeer Mini Cat 3 analog camera](https://www.foxeer.com/foxeer-mini-cat-3-1200tvl-0-00001lux-starlight-fpv-camera-g-320)
+- [Foxeer Mini Cat 4 analog camera](https://www.foxeer.com/foxeer-mini-cat-4-1200tvl-starlight-fpv-camera-g-614)
 - Alternative: use WiFi, with a USB webcam or PiCam
 - Alternative: use analog TV (NTSC) with a signal amplifier
 - ref: [Oscar Liang's guide to analog FPV](https://oscarliang.com/1-2ghz-fpv-guide/)
