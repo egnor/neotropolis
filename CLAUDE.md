@@ -1,0 +1,1 @@
+- see TRASHBOT.md for trashbot design notes

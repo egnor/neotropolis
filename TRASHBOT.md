@@ -3,7 +3,9 @@
 Trashbot is a modest, low speed remotely operated tank-tread ground vehicle
 to be a mission component for
 [Crux Industries](https://theimmersivemachine.com/faq-page/crux/),
-a faction at [Neotropolis](https://www.neotropolis.com/).
+a faction at [Neotropolis](https://www.neotropolis.com/), a cyberpunk-themed
+immersive event/festival in Southern California.
+
 Neotropolis attendees will operate the bot (with supervision) using
 a camera view and a controller and accomplish various tasks. Operators
 will have camera and audio feed but only be able to communicate back
@@ -42,8 +44,6 @@ Remote control link (operator to trashbot, bidirectional)
 - Operator Pi reads gamepad + StreamDeck, maps to CRSF channels, sends
   to TX module. Robot Pi decodes channels into motor/emoji/lighting commands.
 - Telemetry (battery, RSSI, link quality) flows back via CRSF return path.
-- DEV/TEST: [RadioMaster Pocket](https://radiomasterrc.com/products/pocket-radio-controller)
-  (ELRS 900MHz) for testing RX independently before Pi integration
 - ref: [Devana Project: send commands from Pi](https://thedevanaproject.com/2025/01/27/how-to-send-rc-commands-with-a-raspberry-pi-and-elrs-transmitter-module/)
 - ref: [Devana Project: decode commands on Pi](https://thedevanaproject.com/2025/01/20/how-to-decode-rc-commands-from-an-elrs-receiver-module-with-a-raspberry-pi/)
 - ref: [crsf-parser Python library](https://github.com/AlessioMorale/crsf_parser)
