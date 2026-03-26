@@ -21,8 +21,8 @@ Onboard power, propulsion, and control
 - 24V, 10AH lithium battery
 - 2x [ODrive S1](https://docs.odriverobotics.com/v/latest/hardware/s1-datasheet.html)
   motor controllers
-- [24V-to-12V 20A DC-DC](https://www.amazon.com/dp/B0CS2KJSKS)
-- [24V/12V-to-5V 5A DC-DC](https://www.amazon.com/dp/B0FD6M8D7K)
+- [24V-to-12V 20A DC-DC](https://www.amazon.com/dp/B0CS2KJSKS) for video Tx
+- [24V/12V-to-5V 5A DC-DC](https://www.amazon.com/dp/B0FD6M8D7K) for Pi/ELRS Rx
 - [Raspberry Pi 5](https://www.raspberrypi.com/products/raspberry-pi-5/)
 - [ODrive USB-CAN adapter](https://shop.odriverobotics.com/products/usb-can-adapter)
 
@@ -52,10 +52,12 @@ Remote control link (operator to trashbot, bidirectional)
 Remote audio/video (trashbot to operator)
 
 - [8W 1.3GHz analog VTX/VRX](https://www.kimpok.com/sale-51038869-1-2g-1-3g-fpv-vrx-vtx-8w-wireless-video-receiver-and-transmitter-long-range-transmission.html)
+  - Tx pigtail (10cm) JST-PH: GND, audio, 12V, video
+  - Tx PCB Picoblade: GND, audio, 12V, video
 - [Foxeer Mini Cat 4 analog camera](https://www.foxeer.com/foxeer-mini-cat-4-1200tvl-starlight-fpv-camera-g-614)
+  - 5-pin Picoblade: VCC, GND, VID, (OSD), (VSEN)
 - [CCTV 12V microphone](https://www.amazon.com/dp/B07G88FY8M)
-- Alternative: use WiFi, with a USB webcam or PiCam
-- Alternative: use analog TV (NTSC) with a signal amplifier
+  - pigtail with GND, +12V, audio out
 - ref: [Oscar Liang's guide to analog FPV](https://oscarliang.com/1-2ghz-fpv-guide/)
 - ref: [Oscar Liang's antenna guide](https://oscarliang.com/best-fpv-antenna/)
   (his other guides are good too)
