@@ -49,10 +49,11 @@ Remote control link (operator to trashbot, bidirectional)
 - ref: [crsf-parser Python library](https://github.com/AlessioMorale/crsf_parser)
 - ref: [elrs-joystick-control (USB CRSF)](https://github.com/kaack/elrs-joystick-control)
 
-Remote video (trashbot to operator)
+Remote audio/video (trashbot to operator)
 
 - [8W 1.3GHz analog VTX/VRX](https://www.kimpok.com/sale-51038869-1-2g-1-3g-fpv-vrx-vtx-8w-wireless-video-receiver-and-transmitter-long-range-transmission.html)
 - [Foxeer Mini Cat 4 analog camera](https://www.foxeer.com/foxeer-mini-cat-4-1200tvl-starlight-fpv-camera-g-614)
+- [CCTV 12V microphone](https://www.amazon.com/dp/B07G88FY8M)
 - Alternative: use WiFi, with a USB webcam or PiCam
 - Alternative: use analog TV (NTSC) with a signal amplifier
 - ref: [Oscar Liang's guide to analog FPV](https://oscarliang.com/1-2ghz-fpv-guide/)
