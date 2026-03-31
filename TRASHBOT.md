@@ -22,7 +22,7 @@ Onboard power, propulsion, and control
 - 2x [ODrive S1](https://docs.odriverobotics.com/v/latest/hardware/s1-datasheet.html)
   motor controllers
 - [24V-to-12V 20A DC-DC](https://www.amazon.com/dp/B0CS2KJSKS) for video Tx
-- [24V/12V-to-5V 5A DC-DC](https://www.amazon.com/dp/B0FD6M8D7K) for Pi/ELRS Rx
+- [24V/12V-to-5V 10A DC-DC](https://www.amazon.com/dp/B0FD6M8D7K) for Pi/ELRS Rx
 - [Raspberry Pi 5](https://www.raspberrypi.com/products/raspberry-pi-5/)
 - [ODrive USB-CAN adapter](https://shop.odriverobotics.com/products/usb-can-adapter)
 
