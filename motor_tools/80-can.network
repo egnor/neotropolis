@@ -1,7 +1,7 @@
-# systemd-networkd config file to bring up can0 automatically
-# https://www.pragmaticlinux.com/2021/07/automatically-bring-up-a-socketcan-interface-on-boot/
+# systemd-networkd config to bring up can0 automatically
+# (80-can.link sets tx queue size; this file sets bitrate and brings link up)
 # install with:
-#   sudo cp 80-can.network /etc/systemd/network/
+#   sudo cp 80-can.* /etc/systemd/network/
 #   sudo systemctl enable systemd-networkd
 #   sudo systemctl restart systemd-networkd
 

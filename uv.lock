@@ -110,15 +110,6 @@ wheels = [
 ]
 
 [[package]]
-name = "appdirs"
-version = "1.4.4"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d7/d8/05696357e0311f5b5c316d7b95f46c669dd9c15aaeecbb48c7d0aeb88c40/appdirs-1.4.4.tar.gz", hash = "sha256:7d5d0167b2b1ba821647616af46a749d1c653740dd0d2415100fe26e27afdf41", size = 13470, upload-time = "2020-05-11T07:59:51.037Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3b/00/2344469e2084fb287c2e0b57b72910309874c3245463acd6cf5e3db69324/appdirs-1.4.4-py2.py3-none-any.whl", hash = "sha256:a841dacd6b99318a741b166adb07e19ee71a274450e68237b4650ca1055ab128", size = 9566, upload-time = "2020-05-11T07:59:49.499Z" },
-]
-
-[[package]]
 name = "asttokens"
 version = "3.0.1"
 source = { registry = "https://pypi.org/simple" }
@@ -353,6 +344,45 @@ name = "docopt"
 version = "0.6.2"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a2/55/8f8cab2afd404cf578136ef2cc5dfb50baa1761b68c9da1fb1e4eed343c9/docopt-0.6.2.tar.gz", hash = "sha256:49b3a825280bd66b3aa83585ef59c4a8c82f2c8a522dbe754a8bc8d08c85c491", size = 25901, upload-time = "2014-06-16T11:18:57.406Z" }
+
+[[package]]
+name = "egnor-neotropolis"
+version = "0.0"
+source = { editable = "." }
+dependencies = [
+    { name = "matplotlib" },
+    { name = "odrive" },
+    { name = "pyserial" },
+    { name = "python-can" },
+    { name = "pyusb" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "black" },
+    { name = "grip" },
+    { name = "mypy" },
+    { name = "pdoc" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "matplotlib", specifier = ">=3.10.8" },
+    { name = "odrive", specifier = ">=0.6.11.dev1" },
+    { name = "pyserial", specifier = ">=3.5" },
+    { name = "python-can", specifier = ">=4.6.1" },
+    { name = "pyusb", specifier = ">=1.3.1" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "black" },
+    { name = "grip" },
+    { name = "mypy" },
+    { name = "pdoc" },
+    { name = "ruff" },
+]
 
 [[package]]
 name = "executing"
@@ -1016,45 +1046,6 @@ wheels = [
 ]
 
 [[package]]
-name = "neo"
-version = "0.0"
-source = { editable = "." }
-dependencies = [
-    { name = "matplotlib" },
-    { name = "odrive" },
-    { name = "pyserial" },
-    { name = "python-can" },
-    { name = "pyusb" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "black" },
-    { name = "grip" },
-    { name = "mypy" },
-    { name = "pdoc" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "matplotlib", specifier = ">=3.10.8" },
-    { name = "odrive", specifier = ">=0.6.10.post0" },
-    { name = "pyserial", specifier = ">=3.5" },
-    { name = "python-can", specifier = ">=4.6.1" },
-    { name = "pyusb", specifier = ">=1.3.1" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "black" },
-    { name = "grip" },
-    { name = "mypy" },
-    { name = "pdoc" },
-    { name = "ruff" },
-]
-
-[[package]]
 name = "numpy"
 version = "2.4.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1117,20 +1108,19 @@ wheels = [
 
 [[package]]
 name = "odrive"
-version = "0.6.10.post0"
+version = "0.6.11.dev1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
-    { name = "appdirs" },
     { name = "ipython" },
     { name = "setuptools" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0e/df/1351f79f7fac91d0fc4465c5a074d16a5ec928cb02896c8e56efa512806f/odrive-0.6.10.post0-py37-none-macosx_12_0_arm64.whl", hash = "sha256:28909c265183fc846e5da0706a9fdd481ba95099aeea66b49f88836455aa50f9", size = 272583, upload-time = "2025-04-15T06:08:07.423Z" },
-    { url = "https://files.pythonhosted.org/packages/2c/88/c8bb662c6464304748532c5869cfbfa7d03af447d5b9af2f6c97c9bdf654/odrive-0.6.10.post0-py37-none-macosx_12_0_x86_64.whl", hash = "sha256:9066d93b7c03f74921d3544f9a706b485fa819d4063fdf39b689f2d90f3b69b1", size = 279275, upload-time = "2025-04-15T06:08:08.905Z" },
-    { url = "https://files.pythonhosted.org/packages/0c/6d/b45ee16ce3a5264de76ff17974894008a941475774becb3f0f0e2580ac82/odrive-0.6.10.post0-py37-none-manylinux_2_28_aarch64.whl", hash = "sha256:4104c61a33eaa9bb3e5befbb29de717e0fcab6028d77c40e2a55c076ee3e0de8", size = 724037, upload-time = "2025-04-15T06:08:10.239Z" },
-    { url = "https://files.pythonhosted.org/packages/c1/d8/3ca69192838807f220ae389325dcd2487ebc7c8833cffe3602bbb01f6211/odrive-0.6.10.post0-py37-none-manylinux_2_28_x86_64.whl", hash = "sha256:a20f0aa7fd96745a867717ff5eeaffd224b899a7bcb5e3a7a3815d1bfd05853f", size = 729407, upload-time = "2025-04-15T06:08:11.584Z" },
-    { url = "https://files.pythonhosted.org/packages/bc/d2/54b4aa0d70cb0680f3187e1da89b860ed448a494f675d91b7950722c8139/odrive-0.6.10.post0-py37-none-win_amd64.whl", hash = "sha256:75e9d363b7ae4150376531c20967b73f0d7d7696db04142aa0d7401d1c3aa619", size = 913400, upload-time = "2025-04-15T06:08:12.938Z" },
+    { url = "https://files.pythonhosted.org/packages/2a/d0/9a740998cce4e3f2e74a7c9a2cc39b6287e524b648ca5f7d8c339d63699f/odrive-0.6.11.dev1-py37-none-macosx_12_0_arm64.whl", hash = "sha256:afa730e1a9da50104d9e4436a1a2241b5e56318cfdf95852bc5ee8b960fbc708", size = 374429, upload-time = "2026-02-27T20:32:46.62Z" },
+    { url = "https://files.pythonhosted.org/packages/83/13/92676b43d128f9b385638eec019552303f609c956ce1fbef5f3aa683d687/odrive-0.6.11.dev1-py37-none-macosx_12_0_x86_64.whl", hash = "sha256:8238bc46637642fc45634df1c08a6a5333a2787c070b1e2d8b439db87b92edbe", size = 396147, upload-time = "2026-02-27T20:32:48.53Z" },
+    { url = "https://files.pythonhosted.org/packages/7c/5a/42214ad5c2c7568c851cccfeb66af811c7a0717a0121aed7218fa555809c/odrive-0.6.11.dev1-py37-none-manylinux_2_28_aarch64.whl", hash = "sha256:a93896b1413cab44bfa4da5dc7a8ed7e2d03ac85da4ac14d611c7f0a9908edb8", size = 812450, upload-time = "2026-02-27T20:32:50.128Z" },
+    { url = "https://files.pythonhosted.org/packages/65/48/9026b5803f5dddc88dddbf9f2736109f2c1bfb657ca003a2e7e55222af64/odrive-0.6.11.dev1-py37-none-manylinux_2_28_x86_64.whl", hash = "sha256:851645c2cdb940cd2a201ef5de3d3359937114ee8be5379b2b064c0495451926", size = 820056, upload-time = "2026-02-27T20:32:52.18Z" },
+    { url = "https://files.pythonhosted.org/packages/aa/77/a7f1aeb61f81d706c41fecc993cfaaa8b587616da46846dd1dbdd14f263a/odrive-0.6.11.dev1-py37-none-win_amd64.whl", hash = "sha256:eb4912a34013c1352bd2ebc5422f458ff61deb728166598d7fbe8acc0a1a130e", size = 1026915, upload-time = "2026-02-27T20:32:54.018Z" },
 ]
 
 [[package]]

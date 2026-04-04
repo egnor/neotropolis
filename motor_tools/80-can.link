@@ -1,0 +1,10 @@
+# systemd-networkd link config to set CAN tx queue size
+# install with:
+#   sudo cp 80-can.* /etc/systemd/network/
+#   sudo systemctl restart systemd-networkd
+
+[Match]
+OriginalName=can0
+
+[Link]
+TransmitQueueLength=256
