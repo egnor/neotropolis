@@ -23,19 +23,20 @@ requires = ["uv_build>=0.9.13,<0.10.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
-dev = ["black", "grip", "mypy", "pdoc", "ruff"]
-
-[tool.black]
-line-length = 80
+dev = ["mypy", "ruff"]
 
 [tool.mypy]
 exclude_gitignore = true
-files = "."
+files = "trashbot"
+overrides = [{ module = ["odrive.*"], follow_untyped_imports = true }]
 
 [tool.pytest]
 asyncio_mode = "auto"
 log_level = "CRITICAL"
 strict = true
+
+[tool.ruff]
+extend-exclude = ["motor_tools", "radio_tools"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]

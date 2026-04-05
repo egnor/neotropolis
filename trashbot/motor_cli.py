@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import asyncclick as click
-import logging
 import ok_logging_setup
 
 import trashbot.motor_driver

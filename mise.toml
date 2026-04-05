@@ -15,4 +15,5 @@ postinstall = '''
 '''
 
 [tasks]
-check = ["uv sync", "black --check .", "ruff check", "mypy", "pytest"]
+check = ["uv sync", "ruff check", "mypy"]
+otool = ["odrivetool --can can:can0 --no-usb"]

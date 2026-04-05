@@ -53,15 +53,15 @@ class MotorDriver:
         self.gold_config = json.loads(gold_str)
 
         errors = []
-        for motor in self.motors:
-            log.debug(f"Checking {motor.name} config...")
-            for key, gold_val in self.gold_config.items():
-                val = motor.config.get(key)
-                if isinstance(gold_val, float):
-                    if struct.pack("<f", gold_val) != struct.pack("<f", val):
-                        errors.append(f"{motor.name}: {val} != exp {gold_val}")
-                elif val != gold_val:
-                    errors.append(f"{motor.name}: {val} != exp {gold_val}")
+        for mot in self.motors:
+            log.debug(f"Checking {mot.name} config...")
+            for key, gold in self.gold_config.items():
+                val = mot.config.get(key)
+                if isinstance(gold, float):
+                    if struct.pack("<f", gold) != struct.pack("<f", val):
+                        errors.append(f"{mot.name}: {key} {val} != exp {gold}")
+                elif val != gold:
+                    errors.append(f"{mot.name}: {key} {val} != exp {gold}")
 
         if errors:
             error_detail = "".join(f"\n  {e}" for e in errors)
@@ -74,10 +74,10 @@ class MotorDriver:
         return self
 
     async def fix_config(self):
-        for motor in self.motors:
-            log.info(f"Updating config: {motor.name}")
+        for mot in self.motors:
+            log.info(f"Updating config: {mot.name}")
             await odrive.legacy_config.apply_config(
-                motor.odrive, self.gold_config, throw_on_error=True
+                mot.odrive, self.gold_config, throw_on_error=True
             )
 
 
