@@ -119,6 +119,18 @@ wheels = [
 ]
 
 [[package]]
+name = "asyncclick"
+version = "8.3.0.7"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f9/ca/25e426d16bd0e91c1c9259112cecd17b2c2c239bdd8e5dba430f3bd5e3ef/asyncclick-8.3.0.7.tar.gz", hash = "sha256:8a80d8ac613098ee6a9a8f0248f60c66c273e22402cf3f115ed7f071acfc71d3", size = 277634, upload-time = "2025-10-11T08:35:44.841Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/01/d9/782ffcb4c97b889bc12d8276637d2739b99520390ee8fec77c07416c5d12/asyncclick-8.3.0.7-py3-none-any.whl", hash = "sha256:7607046de39a3f315867cad818849f973e29d350c10d92f251db3ff7600c6c7d", size = 109925, upload-time = "2025-10-11T08:35:43.378Z" },
+]
+
+[[package]]
 name = "attrs"
 version = "25.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -350,8 +362,10 @@ name = "egnor-neotropolis"
 version = "0.0"
 source = { editable = "." }
 dependencies = [
+    { name = "asyncclick" },
     { name = "matplotlib" },
     { name = "odrive" },
+    { name = "ok-logging-setup" },
     { name = "pyserial" },
     { name = "python-can" },
     { name = "pyusb" },
@@ -368,8 +382,10 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "asyncclick", specifier = ">=8.3.0.7" },
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "odrive", specifier = ">=0.6.11.dev1" },
+    { name = "ok-logging-setup", specifier = ">=0.12" },
     { name = "pyserial", specifier = ">=3.5" },
     { name = "python-can", specifier = ">=4.6.1" },
     { name = "pyusb", specifier = ">=1.3.1" },
@@ -1121,6 +1137,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/7c/5a/42214ad5c2c7568c851cccfeb66af811c7a0717a0121aed7218fa555809c/odrive-0.6.11.dev1-py37-none-manylinux_2_28_aarch64.whl", hash = "sha256:a93896b1413cab44bfa4da5dc7a8ed7e2d03ac85da4ac14d611c7f0a9908edb8", size = 812450, upload-time = "2026-02-27T20:32:50.128Z" },
     { url = "https://files.pythonhosted.org/packages/65/48/9026b5803f5dddc88dddbf9f2736109f2c1bfb657ca003a2e7e55222af64/odrive-0.6.11.dev1-py37-none-manylinux_2_28_x86_64.whl", hash = "sha256:851645c2cdb940cd2a201ef5de3d3359937114ee8be5379b2b064c0495451926", size = 820056, upload-time = "2026-02-27T20:32:52.18Z" },
     { url = "https://files.pythonhosted.org/packages/aa/77/a7f1aeb61f81d706c41fecc993cfaaa8b587616da46846dd1dbdd14f263a/odrive-0.6.11.dev1-py37-none-win_amd64.whl", hash = "sha256:eb4912a34013c1352bd2ebc5422f458ff61deb728166598d7fbe8acc0a1a130e", size = 1026915, upload-time = "2026-02-27T20:32:54.018Z" },
+]
+
+[[package]]
+name = "ok-logging-setup"
+version = "0.12"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/81/a2/780771d7d24a99b7ea384d87f6076579fe34271f7f021019b1cfe33df986/ok_logging_setup-0.12.tar.gz", hash = "sha256:3cd98e7476bafcd659f0bc8f59916326c25f731b8b88d9e352190d83e66d2402", size = 7287, upload-time = "2025-12-17T06:31:15.454Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1a/40/920572dc260b1169862aab6adbf09b6e783e03c5f5ab72cae1f7fc48f292/ok_logging_setup-0.12-py3-none-any.whl", hash = "sha256:0753f3ab3aa7ca3deedaffd3aa01620503cbe330225656073b2dee8b9ac0b195", size = 9429, upload-time = "2025-12-17T06:31:14.258Z" },
 ]
 
 [[package]]

@@ -171,6 +171,61 @@ odrv.erase_configuration()
 odrv.reboot()
 ```
 
+## Configuration Backup, Restore & Verification
+
+```python
+from odrive.legacy_config import backup_config, restore_config
+```
+
+**Backup** — returns a dict of all `.config.` properties as flat dotted paths
+(same format as odrivetool's JSON backup files):
+```python
+config = backup_config(odrv)
+# => {"can.config.baud_rate": 0, "axis0.config.motor.pole_pairs": 7, ...}
+```
+
+**Restore** — writes config dict to device, collects errors for any property
+that couldn't be set. Call `save_configuration()` afterward to persist:
+```python
+import json
+with open('trashbot/motor_config.json') as f:
+    config = json.load(f)
+
+errors = restore_config(odrv, config)
+for e in errors:
+    print(e)
+
+odrv.save_configuration()  # persist to NVM (triggers reboot)
+```
+
+Pass `verify=True` to read back each value after writing and confirm it stuck.
+Pass `throw_on_error=True` to raise `ConfigException` instead of collecting.
+
+**Verify at runtime** — bulk-read current config and compare against expected:
+```python
+import json, struct
+from odrive.legacy_config import backup_config
+
+with open('trashbot/motor_config.json') as f:
+    expected = json.load(f)
+
+actual = backup_config(odrv)
+
+for key, exp_val in expected.items():
+    act_val = actual.get(key)
+    if act_val is None:
+        print(f"MISSING {key}")
+    elif isinstance(exp_val, float):
+        # Compare as raw 32-bit bytes (handles NaN and precision)
+        if struct.pack('<f', exp_val) != struct.pack('<f', act_val):
+            print(f"MISMATCH {key}: expected {exp_val}, got {act_val}")
+    elif act_val != exp_val:
+        print(f"MISMATCH {key}: expected {exp_val}, got {act_val}")
+```
+
+These functions accept SyncObject, AsyncObject, or RuntimeDevice — a decorator
+handles dispatch automatically.
+
 ## CAN-Specific Notes
 
 - **Autobaud** (new in 0.6.11): ODrive auto-detects CAN baudrate. No need
@@ -182,6 +237,34 @@ odrv.reboot()
 - **Node ID assignment**: After discovery, configure with
   `odrv.config.can.node_id = N` then `odrv.save_configuration()`.
 - CAN node ID changes require a reboot (which save_configuration triggers).
+
+## CAN Reads & Cyclic Messages
+
+**Every property read is a CAN round trip (SDO request/response).** The library
+does not cache values from cyclic broadcast messages. Even if the ODrive is
+broadcasting `pos_estimate` via a cyclic encoder message (cmd 0x09), calling
+`odrv.axis0.pos_estimate` still sends an SDO request and waits for the reply.
+
+**`transient` flag for polling loops** — `read_multiple()` accepts
+`transient=True`, which tells the CAN backend to favor timeout over retries.
+Useful for control loops where a skipped read is better than a stale retry
+blocking the bus:
+```python
+# Low-level RuntimeDevice API (not available on SyncObject/AsyncObject)
+vals = await runtime_dev.read_multiple(
+    ['axis0.pos_estimate', 'axis0.vel_estimate'],
+    transient=True
+)
+```
+
+**Subscription mechanism** — there's a `Subscription` class in libodrive.py
+that uses a circular buffer for push-style data, but it's marked "not fully
+tested" and isn't wired into the high-level API.
+
+**Hybrid option** — use the odrive library for commands/config but sniff cyclic
+CAN broadcasts directly with `python-can` for lowest-latency feedback. Probably
+unnecessary at tank-tread speeds where SDO round trips (~few ms at 1Mbps) are
+fine.
 
 ## Device Lost / Reconnection
 
