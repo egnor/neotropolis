@@ -49,6 +49,7 @@ class MotorDriver:
             name = f"M{conf[node_key]} ({await dev.serial_number.read():X})"
             self.motors.append(Motor(name=name, odrive=dev, config=conf))
 
+        log.info(f"⚙️ Found {len(self.motors)} motors, checking config...")
         gold_str = importlib.resources.read_text(trashbot, "motor_config.json")
         self.gold_config = json.loads(gold_str)
 
@@ -66,11 +67,12 @@ class MotorDriver:
         if errors:
             error_detail = "".join(f"\n  {e}" for e in errors)
             if allow_config_errors:
-                log.warning(f"Allowing wrong config:{error_detail}")
+                log.warning(f"Allowing wrong motor config:{error_detail}")
             else:
-                raise MotorError(f"Wrong config:{error_detail}")
-
-        log.info(f"⚙️ Found {len(self.motors)} motors, config checked")
+                raise MotorError(f"Wrong motor config:{error_detail}")
+        else:
+            motors_text = ", ".join(m.name for m in self.motors)
+            log.info(f"✅ Motor configs valid: {motors_text}")
         return self
 
     async def fix_config(self):

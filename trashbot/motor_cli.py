@@ -13,10 +13,8 @@ def main(debug):
 
 
 @main.command()
-async def scan_command():
-    driver = await trashbot.motor_driver.connect()
-    for motor in driver.motors:
-        print(motor.name)
+async def check_command():
+    await trashbot.motor_driver.connect()  # just connect
 
 
 @main.command()
