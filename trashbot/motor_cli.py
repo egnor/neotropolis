@@ -18,9 +18,9 @@ async def check_command():
 
 
 @main.command()
-async def fix_config_command():
+async def fix_configs_command():
     driver = await trashbot.motor_driver.connect(allow_config_errors=True)
-    await driver.fix_config()
+    await driver.fix_configs()
 
 
 if __name__ == "__main__":
