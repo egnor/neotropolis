@@ -36,8 +36,9 @@ log_level = "CRITICAL"
 strict = true
 
 [tool.ruff]
-extend-exclude = ["*_misc"]
+line-length: 80
 
+extend-exclude = ["*_misc"]
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 

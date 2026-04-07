@@ -72,7 +72,7 @@ def unpack(packedValues: list[int]):
             )
         rcChannelValues = list(reversed(rcChannelValues))
     else:
-        print("There are not 22 bytes in this list")
+        print(f"There are {len(packedValues)} bytes, not 22 bytes in this list")
     return rcChannelValues
 
 

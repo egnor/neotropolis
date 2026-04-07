@@ -5,6 +5,7 @@ import dataclasses
 import importlib.resources
 import json
 import logging
+import math
 import odrive
 import odrive.exceptions
 import odrive.legacy_config
@@ -16,6 +17,8 @@ import struct
 import trashbot
 
 _log = logging.getLogger(__name__)
+
+_gold_firmware = (0, 6, 11, 0)
 
 _odrive_exc = (
     odrive.exceptions.DeviceException,
@@ -29,20 +32,76 @@ class MotorError(Exception):
     pass
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(order=False, slots=True)
 class Motor:
     odrive: odrive.runtime_device.RuntimeDevice
-    config: dict
+    config: dict = dataclasses.field(repr=False)
+    firmware: list[int]
+
+    bus_volts: float = 0.0
+    is_active: bool = False
+    status_text: str = ""
+    timeout_count: int = 0
+
+    command_vel: float = 0.0
+    command_fresh: bool = False
+
+    estim_vel: float = 0.0
+    feed_torq: float = 0.0
+    integ_torq: float = 0.0
 
     def __str__(self):
         return f"M{self.odrive.effective_node_id}:{self.odrive.serial_number}"
 
+    def debug_str(self):
+        return (
+            f"M{self.odrive.effective_node_id} {self.debug_emoji()}"
+            f" C{self.command_vel:+.1f}"
+            f" A{self.estim_vel:+.1f}"
+            f" F{self.feed_torq:+05.1f}"
+            f" I{self.integ_torq:+05.1f}"
+            f" {self.bus_volts:+.1f}V"
+            f" {self.status_text}"
+        )
+
+    def debug_emoji(self):
+        if not self.is_active and self.estim_vel <= -0.01:
+            return "⬅️💤"
+        elif not self.is_active and self.estim_vel >= 0.01:
+            return "💤➡️"
+        elif not self.is_active:
+            return "💤🔷"
+        elif self.command_vel <= -0.001 and self.estim_vel <= -0.001:
+            return "◀️⬅️"
+        elif self.command_vel <= -0.001 and -0.01 <= self.estim_vel <= 0.01:
+            return "◀️🔷"
+        elif self.command_vel <= -0.001:
+            return "◀️⚠️➡️"
+        elif self.command_vel >= 0.001 and self.estim_vel >= 0.001:
+            return "➡️▶️"
+        elif self.command_vel >= 0.001 and -0.01 < self.estim_vel < 0.01:
+            return "🔷▶️"
+        elif self.command_vel >= 0.001:
+            return "⬅️⚠️▶️"
+        elif self.estim_vel <= -0.01:
+            return "⬅️⚠️🛑"
+        elif self.estim_vel >= 0.01:
+            return "🛑⚠️➡️"
+        else:
+            return "🛑🔷"
+
 
 class MotorDriver:
-    async def _connect(self, allow_config_errors=False):
-        _log.info("🔎 Scanning for motor controllers...")
+    async def _connect(self, can_iface="can0", allow_config_errors=False):
+        _log.info(f"🔎 Scanning for motors on {can_iface}...")
+
+        # check for other processes using CAN bus
+        rcvlist_lines = open("/proc/net/can/rcvlist_all").readlines()
+        if any(s.split()[:1] == [can_iface] for s in rcvlist_lines):
+            raise MotorError(f"{can_iface} interface in use")
+
         devs = await odrive.find_async(
-            interfaces=["can:can0"],
+            interfaces=[f"can:{can_iface}"],
             count=2,
             return_type=odrive.runtime_device.RuntimeDevice,
         )
@@ -56,51 +115,130 @@ class MotorDriver:
 
         _log.info(f"⚙️ Found {len(devs)} motors, checking configs...")
         try:
-            configs = await asyncio.gather(
-                *(odrive.legacy_config.backup_config(d) for d in devs)
+            backup_config = odrive.legacy_config.backup_config
+            ver_names = ["major", "minor", "revision", "unreleased"]
+            ver_vars = [f"fw_version_{v}" for v in ver_names]
+            configs, vers = await asyncio.gather(
+                asyncio.gather(*(backup_config(d) for d in devs)),
+                asyncio.gather(*(d.read_multiple(ver_vars) for d in devs)),
             )
         except _odrive_exc:
             raise MotorError("Error getting motor configs")
 
         gold_str = importlib.resources.read_text(trashbot, "motor_config.json")
         self.gold_config = json.loads(gold_str)
-        self.motors = [Motor(dev, conf) for dev, conf in zip(devs, configs)]
+        self.motors = [Motor(d, c, v) for d, c, v in zip(devs, configs, vers)]
 
         errors = []
-        for mot in self.motors:
-            _log.debug(f"Checking {mot} config...")
+        for mo in self.motors:
+            _log.debug(f"{mo} checking config...")
+            if mo.firmware != _gold_firmware:
+                errors.append(f"{mo} fw {mo.firmware} != {_gold_firmware}")
             for key, gold in self.gold_config.items():
-                val = mot.config.get(key)
+                val = mo.config.get(key)
                 if isinstance(gold, float):
                     if struct.pack("<f", gold) != struct.pack("<f", val):
-                        errors.append(f"{mot}: {key} {val} != exp {gold}")
+                        errors.append(f"{mo} {key} {val} != exp {gold}")
                 elif val != gold:
-                    errors.append(f"{mot}: {key} {val} != exp {gold}")
+                    errors.append(f"{mo} {key} {val} != exp {gold}")
 
         if errors:
             error_detail = "".join(f"\n  {e}" for e in errors)
             if allow_config_errors:
-                _log.warning(f"Allowing wrong motor config:{error_detail}")
+                _log.warning(f"Allowing motor config mismatch:{error_detail}")
             else:
-                raise MotorError(f"Wrong motor config:{error_detail}")
+                raise MotorError(f"Motor config mismatch:{error_detail}")
         else:
             motors_text = ", ".join(str(m) for m in self.motors)
             _log.info(f"✅ Motor configs valid: {motors_text}")
         return self
 
     async def fix_configs(self):
-        for mot in self.motors:
-            _log.info(f"🔧 Updating config: {mot}")
+        for mo in self.motors:
             try:
+                _log.info(f"🔧 {mo} updating config")
                 await odrive.legacy_config.apply_config(
-                    mot.odrive, self.gold_config, throw_on_error=True
+                    mo.odrive, self.gold_config, throw_on_error=True
                 )
-                _log.debug(f"Saving config to NVRAM: {mot}")
+                _log.info(f"🔃 {mo} saving and rebooting")
                 await odrive.utils.call_rebooting_function(
-                    mot.odrive, "save_configuration"
+                    mo.odrive, "save_configuration"
                 )
             except _odrive_exc:
-                raise MotorError(f"Error updating motor {mot} config")
+                raise MotorError(f"Error updating motor {mo} config")
+
+    async def refresh(self):
+        try:
+            refresh_tasks = [self._refresh_motor(mo) for mo in self.motors]
+            await asyncio.wait_for(asyncio.gather(*refresh_tasks), 0.05)
+        except _odrive_exc:
+            raise MotorError("Error talking to motor")
+
+    async def _refresh_motor(self, mo):
+        try:
+            values = await mo.odrive.read_multiple(
+                [
+                    "axis0.active_errors",
+                    "axis0.controller.vel_integrator_torque",
+                    "axis0.current_state",
+                    "axis0.disarm_reason",
+                    "axis0.enable_pin.state",
+                    "axis0.vel_estimate",
+                    "vbus_voltage",
+                ],
+                transient=True,
+            )
+            acode, integ, state, rcode, en, vel, vbus = values
+        except TimeoutError:
+            _log.warn(f"{mo} timeout in refresh")
+            mo.timeout_count += 1
+            if mo.timeout_count >= 5:
+                raise
+
+        # Interpret motor controller status and error bits
+        OError = odrive.enums.ODriveError
+        estop = (state == odrive.enums.AxisState.IDLE and not en)
+        mo.is_active = (state == odrive.enums.AxisState.CLOSED_LOOP_CONTROL)
+        status_words = [
+            "ESTOP" if estop else odrive.enums.AxisState(state).name,
+            *("why+now:" + e.name for e in OError(rcode & acode)),
+            *("why:" + e.name for e in OError(rcode & ~acode)),
+            *("now:" + e.name for e in OError(acode & ~rcode)),
+        ]
+        mo.status_text = " ".join(status_words)
+        mo.bus_volts = vbus
+
+        # Copy (and translate) controller diagnostic variables
+        flip = -1 if mo.odrive.effective_node_id == 1 else 1
+        mo.estim_vel = vel * flip
+        mo.integ_torq = integ * flip
+
+        # Compute torque feedforward
+        # other_mo = self.motors[1 if mo is self.motors[0] else 0]
+        # diff_vel = mo.command_vel - other_mo.command_vel
+
+        mo.feed_torq = 0
+        # if diff_vel * mo.command_vel < 0 and abs(diff_vel) > 0.01:
+        #     mo.feed_torq += math.copysign(10.0, diff_vel)
+        if abs(mo.command_vel) >= 0.01:
+            mo.feed_torq += math.copysign(10.0, mo.command_vel)
+            mo.feed_torq += 1.0 * mo.command_vel
+
+        # Send motor command (zero for safety when not active)
+        if mo.command_fresh:
+            od = mo.odrive
+            if mo.is_active:
+                set_vel = mo.command_vel * flip
+                set_torq = mo.feed_torq * flip
+                await od.write("axis0.controller.input_vel", set_vel)
+                await od.write("axis0.controller.input_torque", set_torq)
+            else:
+                await od.write("axis0.controller.input_vel", 0.0)
+                await od.write("axis0.controller.input_torque", 0.0)
+                await od.write("axis0.controller.vel_integrator_torque", 0.0)
+
+            await od.call_function("axis0.watchdog_feed")
+            mo.command_fresh = False
 
 
 async def connect(**kwargs) -> MotorDriver:
