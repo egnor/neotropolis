@@ -1,1 +1,3 @@
 - see TRASHBOT.md for trashbot design notes
+- to refresh the installation (uv sync, etc): run `mise install`
+- to run code checkers (ruff, mypy, etc): run `mise run check`
