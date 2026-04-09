@@ -16,6 +16,7 @@ from construct import (
     Checksum,
     Const,
     ConstructError,
+    Container,
     CString,
     Enum,
     ExprAdapter,
@@ -45,47 +46,47 @@ log = logging.getLogger(__name__)
 frame_type = Enum(
     Int8ub,
     GPS=0x02,
-    GPS_Time=0x03,
-    GPS_Extended=0x06,
-    Variometer_Sensor=0x07,
-    Battery_Sensor=0x08,
-    Barometric_Altitude=0x09,
+    GPSTime=0x03,
+    GPSExtended=0x06,
+    VariometerSensor=0x07,
+    BatterySensor=0x08,
+    BarometricAltitude=0x09,
     Airspeed=0x0A,
     Heartbeat=0x0B,
     RPM=0x0C,
     Temp=0x0D,
     Voltages=0x0E,
-    VTX_Telemetry=0x10,
+    VTXTelemetry=0x10,
     Barometer=0x11,
     Magnetometer=0x12,
-    Accel_Gyro=0x13,
-    Link_Statistics=0x14,
-    RC_Channels_Packed=0x16,
-    Link_Statistics_RX=0x1C,
-    Link_Statistics_TX=0x1D,
+    AccelGyro=0x13,
+    LinkStatistics=0x14,
+    RCChannelsPacked=0x16,
+    LinkStatisticsRX=0x1C,
+    LinkStatisticsTX=0x1D,
     Attitude=0x1E,
     MAVLink=0x1F,
-    Flight_Mode=0x21,
-    ESP_NOW=0x22,
+    FlightMode=0x21,
+    ESPNOW=0x22,
     # Extended frame types (dest_addr + orig_addr precede payload)
-    Device_Ping=0x28,
-    Device_Info=0x29,
-    Parameter_Settings_Entry=0x2B,
-    Parameter_Read=0x2C,
-    Parameter_Write=0x2D,
-    ELRS_Status=0x2E,
+    DevicePing=0x28,
+    DeviceInfo=0x29,
+    ParameterSettingsEntry=0x2B,
+    ParameterRead=0x2C,
+    ParameterWrite=0x2D,
+    ELRSStatus=0x2E,
     Command=0x32,
-    Remote_Related=0x3A,
-    KISS_Req=0x78,
-    KISS_Resp=0x79,
-    MSP_Req=0x7A,
-    MSP_Resp=0x7B,
-    MSP_Write=0x7C,
-    Ardupilot_Resp=0x80,
+    RemoteRelated=0x3A,
+    KISSReq=0x78,
+    KISSResp=0x79,
+    MSPReq=0x7A,
+    MSPResp=0x7B,
+    MSPWrite=0x7C,
+    ArdupilotResp=0x80,
 )
 
 
-def ScaledValue(subcon, scale, offset=0.0):
+def _Scaled(subcon, scale, offset=0.0):
     """val = raw * scale + offset, raw = round((val - offset) / scale)."""
     return ExprAdapter(
         subcon,
@@ -105,7 +106,7 @@ _CH_OFFSET = -0.5 * (_CH_MIN + _CH_MAX) * _CH_SCALE
 # specifically indicates the receiver has no link.
 CHANNEL_FAILSAFE = _CH_OFFSET
 
-_rc_channel = ScaledValue(BitsInteger(11), _CH_SCALE, _CH_OFFSET)
+_rc_channel = _Scaled(BitsInteger(11), _CH_SCALE, _CH_OFFSET)
 
 _elrs_status_byte = BitStruct(
     Padding(6),
@@ -122,22 +123,22 @@ _rc_channels_payload = BitStruct(
 _tx_to_mw = [0, 10, 25, 100, 500, 1000, 2000, 250, 50]
 
 _link_statistics_payload = Struct(
-    "up_rssi_ant1_dbm" / ScaledValue(Int8ub, -1),
-    "up_rssi_ant2_dbm" / ScaledValue(Int8ub, -1),
+    "up_rssi_ant1_dbm" / _Scaled(Int8ub, -1),
+    "up_rssi_ant2_dbm" / _Scaled(Int8ub, -1),
     "up_link_quality" / Int8ub,
     "up_snr" / Int8sb,
     "active_antenna" / Int8ub,
     "rf_mode" / Int8ub,
     "up_tx_power_mw" / Mapping(Int8ub, {k: v for v, k in enumerate(_tx_to_mw)}),
-    "down_rssi_ant1_dbm" / ScaledValue(Int8ub, -1),
+    "down_rssi_ant1_dbm" / _Scaled(Int8ub, -1),
     "down_link_quality" / Int8ub,
     "down_snr" / Int8sb,
-    "down_rssi_ant2_dbm" / Optional(ScaledValue(Int8ub, -1)),  # ELRS extension
+    "down_rssi_ant2_dbm" / Optional(_Scaled(Int8ub, -1)),  # ELRS extension
 )
 
 _battery_sensor_payload = Struct(
-    "voltage_v" / ScaledValue(Int16ub, 0.1),
-    "current_a" / ScaledValue(Int16ub, 0.1),
+    "voltage_v" / _Scaled(Int16ub, 0.1),
+    "current_a" / _Scaled(Int16ub, 0.1),
     "capacity_used_mah" / Int24ub,
     "remaining_pct" / Int8ub,
 )
@@ -152,8 +153,8 @@ _remote_related_payload = Struct(
     "dest_addr" / Int8ub,
     "orig_addr" / Int8ub,
     "sub_type" / Int8ub,  # 0x10 = timing, 0x3C = game
-    "rate_us" / ScaledValue(Int32ub, 0.1),  # desired RC packet interval
-    "offset_us" / ScaledValue(Int32sb, 0.1),  # phase offset for sync
+    "rate_us" / _Scaled(Int32ub, 0.1),  # desired RC packet interval
+    "offset_us" / _Scaled(Int32sb, 0.1),  # phase offset for sync
 )
 
 _heartbeat_payload = Struct(
@@ -163,14 +164,14 @@ _heartbeat_payload = Struct(
 _frame_payload = Switch(
     this.type,
     {
-        "RC_Channels_Packed": _rc_channels_payload,
-        "Link_Statistics": _link_statistics_payload,
-        "Battery_Sensor": _battery_sensor_payload,
-        "Flight_Mode": _flight_mode_payload,
-        "Remote_Related": _remote_related_payload,
+        "RCChannelsPacked": _rc_channels_payload,
+        "LinkStatistics": _link_statistics_payload,
+        "BatterySensor": _battery_sensor_payload,
+        "FlightMode": _flight_mode_payload,
+        "RemoteRelated": _remote_related_payload,
         "Heartbeat": _heartbeat_payload,
     },
-    default=Pass,
+    default=Struct(),
 )
 
 _frame_body = Struct(
@@ -192,7 +193,7 @@ frame = FocusedSeq("data", "sync" / Const(b"\xc8"), "data" / _frame_data)
 
 def parse_frame(input: collections.abc.Buffer) -> dict:
     result = frame.parse(input)
-    return {"type": result.value.type, **result.value.payload}
+    return Container(type=result.value.type, **result.value.payload)
 
 
 def build_frame(type: str, **rest) -> bytes:

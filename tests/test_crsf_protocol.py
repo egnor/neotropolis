@@ -1,38 +1,22 @@
-import fastcrc
+import construct
 import pytest
-from construct import ConstructError
 
-from trashbot.crsf_protocol import (
-    CHANNEL_FAILSAFE,
-    ScaledValue,
-    Int8ub,
-    _link_statistics_payload,
-    _rc_channels_payload,
-    consume_frame,
-    frame,
-)
+import trashbot.crsf_protocol
 
 
-def make_frame(type_id: int, payload: bytes) -> bytes:
-    """Build a raw CRSF frame: sync + length + type + payload + CRC."""
-    body = bytes([type_id]) + payload
-    crc = fastcrc.crc8.dvb_s2(body)
-    return b"\xc8" + bytes([len(body) + 1]) + body + bytes([crc])
+# --- Scaled values ---
 
 
-# --- ScaledValue ---
-
-
-def test_scaled_value_round_trip():
-    sv = ScaledValue(Int8ub, 0.5, 10.0)
+def test_scaled_round_trip():
+    sv = trashbot.crsf_protocol._Scaled(construct.Int8ub, 0.5, 10.0)
     # raw=100 -> 100 * 0.5 + 10 = 60.0
     assert sv.parse(b"\x64") == 60.0
     # 60.0 -> round((60.0 - 10.0) / 0.5) = 100
     assert sv.build(60.0) == b"\x64"
 
 
-def test_scaled_value_negative_scale():
-    sv = ScaledValue(Int8ub, -1)
+def test_scaled_negative_scale():
+    sv = trashbot.crsf_protocol._Scaled(construct.Int8ub, -1)
     # raw=50 -> 50 * -1 = -50
     assert sv.parse(b"\x32") == -50
     assert sv.build(-50) == b"\x32"
@@ -44,10 +28,10 @@ def test_scaled_value_negative_scale():
 def test_channels_center():
     """All zeros should encode to center values and decode back."""
     channels = [0.0] * 16
-    encoded = _rc_channels_payload.build(
+    encoded = trashbot.crsf_protocol._rc_channels_payload.build(
         {"scaled_values": channels, "elrs_status": None}
     )
-    parsed = _rc_channels_payload.parse(encoded)
+    parsed = trashbot.crsf_protocol._rc_channels_payload.parse(encoded)
     for i, v in enumerate(parsed.scaled_values):
         assert abs(v) < 0.001, f"ch{i} center: {v}"
 
@@ -55,82 +39,81 @@ def test_channels_center():
 def test_channels_limits():
     """±1.0 should round-trip within 11-bit quantization error."""
     channels = [1.0 if i % 2 == 0 else -1.0 for i in range(16)]
-    encoded = _rc_channels_payload.build(
+    encoded = trashbot.crsf_protocol._rc_channels_payload.build(
         {"scaled_values": channels, "elrs_status": None}
     )
-    parsed = _rc_channels_payload.parse(encoded)
+    parsed = trashbot.crsf_protocol._rc_channels_payload.parse(encoded)
     for i, v in enumerate(parsed.scaled_values):
         assert abs(v - channels[i]) < 0.002, f"ch{i}: {v}"
 
 
 def test_channel_failsafe_constant():
-    parsed = _rc_channels_payload.parse(b"\0" * 22)
+    parsed = trashbot.crsf_protocol._rc_channels_payload.parse(b"\0" * 22)
     for i, v in enumerate(parsed.scaled_values):
-        assert v == CHANNEL_FAILSAFE, f"ch{i}: {v}"  # _exactly_ equal
+        assert v == trashbot.crsf_protocol.CHANNEL_FAILSAFE, f"ch{i}: {v}"
 
 
 # --- Frame parsing (known types) ---
 
 
 def test_parse_link_statistics():
-    raw = frame.build(
-        {
-            "value": {
-                "type": "Link_Statistics",
-                "payload": {
-                    "up_rssi_ant1_dbm": -50,
-                    "up_rssi_ant2_dbm": -55,
-                    "up_link_quality": 100,
-                    "up_snr": 10,
-                    "active_antenna": 0,
-                    "rf_mode": 4,
-                    "up_tx_power_mw": 100,
-                    "down_rssi_ant1_dbm": -60,
-                    "down_link_quality": 95,
-                    "down_snr": 8,
-                    "down_rssi_ant2_dbm": -62,
-                },
-            }
-        }
+    raw = trashbot.crsf_protocol.build_frame(
+        type=trashbot.crsf_protocol.frame_type.LinkStatistics,
+        up_rssi_ant1_dbm=-50,
+        up_rssi_ant2_dbm=-55,
+        up_link_quality=100,
+        up_snr=10,
+        active_antenna=0,
+        rf_mode=4,
+        up_tx_power_mw=100,
+        down_rssi_ant1_dbm=-60,
+        down_link_quality=95,
+        down_snr=8,
+        down_rssi_ant2_dbm=-62,
     )
-    parsed = frame.parse(raw)
-    body = parsed.value
-    assert body.type == "Link_Statistics"
-    assert body.payload.up_rssi_ant1_dbm == -50
-    assert body.payload.up_link_quality == 100
-    assert body.payload.down_rssi_ant2_dbm == -62
+    parsed = trashbot.crsf_protocol.parse_frame(raw)
+    assert parsed.type == "LinkStatistics"
+    assert parsed.up_rssi_ant1_dbm == -50
+    assert parsed.up_link_quality == 100
+    assert parsed.down_rssi_ant2_dbm == -62
 
 
 def test_parse_rc_channels():
-    channels = [0.5, -0.5] + [0.0] * 14
-    payload = _rc_channels_payload.build(
-        {"scaled_values": channels, "elrs_status": None}
+    raw = trashbot.crsf_protocol.build_frame(
+        type=trashbot.crsf_protocol.frame_type.RCChannelsPacked,
+        scaled_values=[0.5, -0.5] + [0.0] * 14,
+        elrs_status=None,
     )
-    raw = make_frame(0x16, payload)
-    parsed = frame.parse(raw)
-    body = parsed.value
-    assert body.type == "RC_Channels_Packed"
-    assert body.payload.scaled_values[0] == pytest.approx(0.5, abs=0.002)
-    assert body.payload.scaled_values[1] == pytest.approx(-0.5, abs=0.002)
+    parsed = trashbot.crsf_protocol.parse_frame(raw)
+    assert parsed.type == "RCChannelsPacked"
+    assert parsed.scaled_values[0] == pytest.approx(0.5, abs=0.002)
+    assert parsed.scaled_values[1] == pytest.approx(-0.5, abs=0.002)
 
 
 def test_parse_flight_mode():
-    raw = make_frame(0x21, b"ARMED\x00")
-    parsed = frame.parse(raw)
-    body = parsed.value
-    assert body.type == "Flight_Mode"
-    assert body.payload.flight_mode == "ARMED"
+    raw = trashbot.crsf_protocol.build_frame(
+        type=trashbot.crsf_protocol.frame_type.FlightMode,
+        flight_mode="ARMED",
+    )
+    parsed = trashbot.crsf_protocol.parse_frame(raw)
+    assert parsed.type == "FlightMode"
+    assert parsed.flight_mode == "ARMED"
 
 
 def test_parse_battery_sensor():
     # 25.0V = raw 250, 10.0A = raw 100, 1500mAh, 75%
-    raw = make_frame(0x08, b"\x00\xfa\x00\x64\x00\x05\xdc\x4b")
-    parsed = frame.parse(raw)
-    body = parsed.value
-    assert body.type == "Battery_Sensor"
-    assert body.payload.voltage_v == pytest.approx(25.0, abs=0.1)
-    assert body.payload.current_a == pytest.approx(10.0, abs=0.1)
-    assert body.payload.remaining_pct == 75
+    raw = trashbot.crsf_protocol.build_frame(
+        type=trashbot.crsf_protocol.frame_type.BatterySensor,
+        voltage_v=25.0,
+        current_a=10.0,
+        capacity_used_mah=1500,
+        remaining_pct=75,
+    )
+    parsed = trashbot.crsf_protocol.parse_frame(raw)
+    assert parsed.type == "BatterySensor"
+    assert parsed.voltage_v == pytest.approx(25.0, abs=0.1)
+    assert parsed.current_a == pytest.approx(10.0, abs=0.1)
+    assert parsed.remaining_pct == 75
 
 
 # --- Unknown type / forward compat ---
@@ -138,95 +121,117 @@ def test_parse_battery_sensor():
 
 def test_parse_unknown_type():
     """Unknown types parse without error; payload is Pass (None)."""
-    raw = make_frame(0x02, b"\x01\x02\x03\x04")  # GPS, no struct
-    parsed = frame.parse(raw)
-    body = parsed.value
-    assert body.type == "GPS"
-    assert body.payload is None
+    raw = trashbot.crsf_protocol.build_frame(
+        type=trashbot.crsf_protocol.frame_type.GPS
+    )
+    parsed = trashbot.crsf_protocol.parse_frame(raw)
+    assert parsed.type == "GPS"
 
 
 def test_forward_compat_extra_bytes():
     """Extra trailing bytes in a known type are silently ignored."""
-    payload = _link_statistics_payload.build(
+    raw_body = trashbot.crsf_protocol._frame_body.build(
         {
-            "up_rssi_ant1_dbm": -50,
-            "up_rssi_ant2_dbm": -55,
-            "up_link_quality": 100,
-            "up_snr": 10,
-            "active_antenna": 0,
-            "rf_mode": 4,
-            "up_tx_power_mw": 100,
-            "down_rssi_ant1_dbm": -60,
-            "down_link_quality": 95,
-            "down_snr": 8,
-            "down_rssi_ant2_dbm": -62,
+            "type": trashbot.crsf_protocol.frame_type.LinkStatistics,
+            "payload": {
+                "up_rssi_ant1_dbm": -50,
+                "up_rssi_ant2_dbm": -55,
+                "up_link_quality": 100,
+                "up_snr": 10,
+                "active_antenna": 0,
+                "rf_mode": 4,
+                "up_tx_power_mw": 100,
+                "down_rssi_ant1_dbm": -60,
+                "down_link_quality": 95,
+                "down_snr": 8,
+                "down_rssi_ant2_dbm": -62,
+            },
         }
     )
+
     # Append 2 hypothetical future bytes before CRC
-    raw = make_frame(0x14, payload + b"\xaa\xbb")
-    parsed = frame.parse(raw)
-    body = parsed.value
-    assert body.type == "Link_Statistics"
-    assert body.payload.up_rssi_ant1_dbm == -50
+    raw = trashbot.crsf_protocol.frame.build({"data": raw_body + b"\xaa\xbb"})
+    parsed = trashbot.crsf_protocol.parse_frame(raw)
+    assert parsed.type == "LinkStatistics"
+    assert parsed.up_rssi_ant1_dbm == -50
 
 
 # --- CRC validation ---
 
 
 def test_bad_crc_rejected():
-    raw = bytearray(make_frame(0x21, b"OK\x00"))
-    raw[-1] ^= 0xFF  # corrupt CRC
-    with pytest.raises(ConstructError):
-        frame.parse(bytes(raw))
+    raw = trashbot.crsf_protocol.build_frame(
+        type=trashbot.crsf_protocol.frame_type.FlightMode,
+        flight_mode="OK",
+    )
+    edited = bytearray(raw)
+    edited[-1] ^= 0xFF  # corrupt CRC
+    with pytest.raises(construct.ConstructError):
+        trashbot.crsf_protocol.parse_frame(raw[:-1] + bytes([raw[-1] ^ 0xFF]))
 
 
 # --- consume_frame ---
 
 
 def test_consume_frame_basic():
-    f1 = make_frame(0x21, b"A\x00")
-    f2 = make_frame(0x21, b"B\x00")
+    f1 = trashbot.crsf_protocol.build_frame(
+        type=trashbot.crsf_protocol.frame_type.FlightMode,
+        flight_mode="A",
+    )
+    f2 = trashbot.crsf_protocol.build_frame(
+        type=trashbot.crsf_protocol.frame_type.FlightMode,
+        flight_mode="B",
+    )
     buf = bytearray(f1 + f2)
-    r1 = consume_frame(buf)
+    r1 = trashbot.crsf_protocol.consume_frame(buf)
     assert r1 is not None
-    assert r1.value.payload.flight_mode == "A"
-    r2 = consume_frame(buf)
+    assert r1.flight_mode == "A"
+    r2 = trashbot.crsf_protocol.consume_frame(buf)
     assert r2 is not None
-    assert r2.value.payload.flight_mode == "B"
-    assert consume_frame(buf) is None
+    assert r2.flight_mode == "B"
+    assert trashbot.crsf_protocol.consume_frame(buf) is None
     assert len(buf) == 0
 
 
 def test_consume_frame_skips_garbage():
-    garbage = b"\xff\xfe\xfd"
-    f = make_frame(0x21, b"OK\x00")
-    buf = bytearray(garbage + f)
-    r = consume_frame(buf)
+    f = trashbot.crsf_protocol.build_frame(
+        type=trashbot.crsf_protocol.frame_type.FlightMode,
+        flight_mode="OK",
+    )
+    r = trashbot.crsf_protocol.consume_frame(bytearray(b"\xff\xfe\xfd" + f))
     assert r is not None
-    assert r.value.payload.flight_mode == "OK"
+    assert r.flight_mode == "OK"
 
 
 def test_consume_frame_incomplete():
     """Incomplete frame stays in buffer for later."""
-    f = make_frame(0x21, b"HI\x00")
+    f = trashbot.crsf_protocol.build_frame(
+        type=trashbot.crsf_protocol.frame_type.FlightMode,
+        flight_mode="HI",
+    )
     buf = bytearray(f[:3])  # only partial
-    assert consume_frame(buf) is None
+    assert trashbot.crsf_protocol.consume_frame(buf) is None
     assert len(buf) == 3  # preserved, waiting for more data
 
 
 def test_consume_frame_bad_crc_resyncs():
     """Bad CRC skips the sync byte and recovers the next valid frame."""
-    bad = bytearray(make_frame(0x21, b"BAD\x00"))
-    bad[-1] ^= 0xFF  # corrupt CRC
-    good = make_frame(0x21, b"GOOD\x00")
-    buf = bytearray(bad + good)
-    r = consume_frame(buf)
+    bad = trashbot.crsf_protocol.build_frame(
+        type=trashbot.crsf_protocol.frame_type.FlightMode,
+        flight_mode="BAD",
+    )
+    good = trashbot.crsf_protocol.build_frame(
+        type=trashbot.crsf_protocol.frame_type.FlightMode,
+        flight_mode="GOOD",
+    )
+    raw = bytearray(bad[:-1] + bytes([bad[-1] ^ 0xFF]) + good)
+    r = trashbot.crsf_protocol.consume_frame(raw)
     assert r is not None
-    assert r.value.payload.flight_mode == "GOOD"
+    assert r.flight_mode == "GOOD"
 
 
 def test_consume_frame_bad_length():
     """Frame with absurd length byte is skipped."""
-    buf = bytearray(b"\xc8\xff\x00\x00")  # sync + length=255 (>64)
-    r = consume_frame(buf)
+    # sync + length=255 (>64)
+    r = trashbot.crsf_protocol.consume_frame(bytearray(b"\xc8\xff\x00\x00"))
     assert r is None
