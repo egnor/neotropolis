@@ -25,7 +25,14 @@ requires = ["uv_build>=0.9.13,<0.10.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
-dev = ["construct-typing", "mypy", "ruff"]
+dev = [
+  "construct-typing",
+  "mypy",
+  "pytest",
+  "pytest-asyncio",
+  "pytest-mock",
+  "ruff",
+]
 
 [tool.mypy]
 exclude_gitignore = true
@@ -39,8 +46,8 @@ strict = true
 
 [tool.ruff]
 line-length = 80
-
 extend-exclude = ["*_misc"]
+
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 

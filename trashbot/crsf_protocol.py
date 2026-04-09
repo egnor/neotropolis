@@ -6,31 +6,32 @@
 # This module defines Construct structs for parsing/building CRSF frames
 # with declarative CRC validation, plus a serial reader class.
 
+import collections.abc
 import fastcrc
 import logging
-import math
 from construct import (
     Array,
     BitStruct,
     BitsInteger,
-    ByteSwapped,
     Checksum,
     Const,
-    Construct,
     ConstructError,
+    CString,
     Enum,
     ExprAdapter,
     Flag,
     FocusedSeq,
-    GreedyBytes,
+    OffsettedEnd,
     Int8sb,
     Int8ub,
-    Int16sb,
     Int16ub,
     Int24ub,
+    Int32sb,
+    Int32ub,
     Mapping,
     Optional,
     Padding,
+    Pass,
     Prefixed,
     RawCopy,
     Struct,
@@ -40,17 +41,8 @@ from construct import (
 
 log = logging.getLogger(__name__)
 
-
-def ScaledValue(subcon, scale, offset=0.0):
-    """val = raw * scale + offset, raw = round((val - offset) / scale)."""
-    return ExprAdapter(
-        subcon,
-        decoder=lambda obj, ctx: obj * scale + offset,
-        encoder=lambda obj, ctx: round((obj - offset) / scale),
-    )
-
-
-_payload_type = Enum(
+# All known frame types, for reference (we do not support most of them)
+frame_type = Enum(
     Int8ub,
     GPS=0x02,
     GPS_Time=0x03,
@@ -75,43 +67,61 @@ _payload_type = Enum(
     MAVLink=0x1F,
     Flight_Mode=0x21,
     ESP_NOW=0x22,
+    # Extended frame types (dest_addr + orig_addr precede payload)
+    Device_Ping=0x28,
+    Device_Info=0x29,
+    Parameter_Settings_Entry=0x2B,
+    Parameter_Read=0x2C,
+    Parameter_Write=0x2D,
+    ELRS_Status=0x2E,
+    Command=0x32,
+    Remote_Related=0x3A,
+    KISS_Req=0x78,
+    KISS_Resp=0x79,
+    MSP_Req=0x7A,
+    MSP_Resp=0x7B,
+    MSP_Write=0x7C,
+    Ardupilot_Resp=0x80,
 )
+
+
+def ScaledValue(subcon, scale, offset=0.0):
+    """val = raw * scale + offset, raw = round((val - offset) / scale)."""
+    return ExprAdapter(
+        subcon,
+        decoder=lambda obj, ctx: obj * scale + offset,
+        encoder=lambda obj, ctx: round((obj - offset) / scale),
+    )
 
 
 # RC channels: ELRS uses 172-1811 for -100% to +100%, center 992
-_CH_CENTER = 991.5
-_CH_RANGE = 819.5
+_CH_MIN = 172
+_CH_MAX = 1811
+_CH_SCALE = 2.0 / (_CH_MAX - _CH_MIN)
+_CH_OFFSET = -0.5 * (_CH_MIN + _CH_MAX) * _CH_SCALE
 
+# ELRS sends raw channel value 0 on link loss/failsafe, which scales to this.
+# Any channel value outside ±1.0 is beyond normal range; this value (~-1.21)
+# specifically indicates the receiver has no link.
+CHANNEL_FAILSAFE = _CH_OFFSET
 
-def _decode_channels(obj, ctx) -> list[float]:
-    return [(int(ch) - _CH_CENTER) / _CH_RANGE for ch in obj.ch]
+_rc_channel = ScaledValue(BitsInteger(11), _CH_SCALE, _CH_OFFSET)
 
-
-def _encode_channels(obj: list[float], ctx) -> dict:
-    return {"ch": [round(v * _CH_RANGE + _CH_CENTER) for v in obj]}
-
-
-_channel_values = ExprAdapter(
-    ByteSwapped(BitStruct("ch" / Array(16, BitsInteger(11)))),
-    decoder=_decode_channels,
-    encoder=_encode_channels,
-)
-
-_elrs_status = BitStruct(
+_elrs_status_byte = BitStruct(
     Padding(6),
     "armed_ch5" / Flag,
     "armed_switch" / Flag,
 )
 
-payload_rc_channels = Struct(
-    "scaled_values" / _channel_values,
-    "elrs_status" / Optional(_elrs_status),
+_rc_channels_payload = BitStruct(
+    "scaled_values" / Array(16, _rc_channel),
+    "elrs_status" / Optional(_elrs_status_byte),  # ELRS extension
 )
 
 # TX power is an enum index, not milliwatts
 _tx_to_mw = [0, 10, 25, 100, 500, 1000, 2000, 250, 50]
 
-payload_link_statistics = Struct(
+_link_statistics_payload = Struct(
     "up_rssi_ant1_dbm" / ScaledValue(Int8ub, -1),
     "up_rssi_ant2_dbm" / ScaledValue(Int8ub, -1),
     "up_link_quality" / Int8ub,
@@ -119,40 +129,53 @@ payload_link_statistics = Struct(
     "active_antenna" / Int8ub,
     "rf_mode" / Int8ub,
     "up_tx_power_mw" / Mapping(Int8ub, {k: v for v, k in enumerate(_tx_to_mw)}),
-    "down_rssi_dbm" / ScaledValue(Int8ub, -1),
+    "down_rssi_ant1_dbm" / ScaledValue(Int8ub, -1),
     "down_link_quality" / Int8ub,
     "down_snr" / Int8sb,
+    "down_rssi_ant2_dbm" / Optional(ScaledValue(Int8ub, -1)),  # ELRS extension
 )
 
-payload_battery_sensor = Struct(
+_battery_sensor_payload = Struct(
     "voltage_v" / ScaledValue(Int16ub, 0.1),
     "current_a" / ScaledValue(Int16ub, 0.1),
     "capacity_used_mah" / Int24ub,
     "remaining_pct" / Int8ub,
 )
 
-payload_attitude = Struct(
-    "pitch_deg" / ScaledValue(Int16sb, 180.0 / (math.pi * 10000)),  # degrees
-    "roll_deg" / ScaledValue(Int16sb, 180.0 / (math.pi * 10000)),
-    "yaw_deg" / ScaledValue(Int16sb, 180.0 / (math.pi * 10000)),
+_flight_mode_payload = Struct(
+    "flight_mode" / CString("utf8"),
 )
 
-payload_heartbeat = Struct(
+# Extended frame: dest_addr and orig_addr precede the subtype/payload.
+# ELRS TX sends this every ~200ms to tell the host the desired RC packet rate.
+_remote_related_payload = Struct(
+    "dest_addr" / Int8ub,
+    "orig_addr" / Int8ub,
+    "sub_type" / Int8ub,  # 0x10 = timing, 0x3C = game
+    "rate_us" / ScaledValue(Int32ub, 0.1),  # desired RC packet interval
+    "offset_us" / ScaledValue(Int32sb, 0.1),  # phase offset for sync
+)
+
+_heartbeat_payload = Struct(
     "origin_address" / Int16ub,
 )
 
-_frame_payloads: dict[str, Construct] = {  # type: ignore[type-arg]
-    "RC_Channels_Packed": payload_rc_channels,
-    "Link_Statistics": payload_link_statistics,
-    "Battery_Sensor": payload_battery_sensor,
-    "Attitude": payload_attitude,
-    "Heartbeat": payload_heartbeat,
-}
+_frame_payload = Switch(
+    this.type,
+    {
+        "RC_Channels_Packed": _rc_channels_payload,
+        "Link_Statistics": _link_statistics_payload,
+        "Battery_Sensor": _battery_sensor_payload,
+        "Flight_Mode": _flight_mode_payload,
+        "Remote_Related": _remote_related_payload,
+        "Heartbeat": _heartbeat_payload,
+    },
+    default=Pass,
+)
 
-_frame_body = FocusedSeq(
-    "payload",
-    "type" / _payload_type,
-    "payload" / Switch(this.type, _frame_payloads, default=GreedyBytes),
+_frame_body = Struct(
+    "type" / frame_type,
+    "payload" / OffsettedEnd(-1, _frame_payload),  # don't consume CRC byte
 )
 
 _frame_data = Prefixed(
@@ -160,17 +183,26 @@ _frame_data = Prefixed(
     FocusedSeq(
         "body",
         "body" / RawCopy(_frame_body),
-        "crc" / Checksum(Int8ub, fastcrc.crc8.dvb_s2, this.body),
+        "crc" / Checksum(Int8ub, fastcrc.crc8.dvb_s2, this.body.data),
     ),
 )
 
-crsf_frame = FocusedSeq("data", "sync" / Const(b"\xc8"), "data" / _frame_data)
+frame = FocusedSeq("data", "sync" / Const(b"\xc8"), "data" / _frame_data)
+
+
+def parse_frame(input: collections.abc.Buffer) -> dict:
+    result = frame.parse(input)
+    return {"type": result.value.type, **result.value.payload}
+
+
+def build_frame(type: str, **rest) -> bytes:
+    return frame.build({"value": {"type": type, "payload": rest}})
 
 
 def consume_frame(buffer: bytearray) -> dict | None:
     while len(buffer) >= 4:
         # Scan for sync byte
-        idx = buffer.find(crsf_frame.sync.value)
+        idx = buffer.find(frame.sync.value)
         if idx < 0:
             buffer.clear()
             break
@@ -186,10 +218,11 @@ def consume_frame(buffer: bytearray) -> dict | None:
             break
 
         try:
-            parsed_frame = crsf_frame.parse(buffer[:frame_size])
+            parsed_frame = parse_frame(buffer[:frame_size])
             del buffer[:frame_size]
             return parsed_frame
         except ConstructError as e:
-            log.debug("bad frame: %s", e)
+            log.debug("Bad frame: %s", e)
+            del buffer[:1]  # skip sync byte, re-sync
 
     return None

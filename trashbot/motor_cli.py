@@ -40,13 +40,14 @@ async def go_command(vel, vel2, secs):
         driver.motors[0].command_fresh = driver.motors[1].command_fresh = True
         await driver.refresh()
 
-        if (mt >= print_mt):
+        if mt >= print_mt:
             print_mt += 0.25
             print(f"MOTOR GO {stop_mt - mt:.2f}s REMAINING")
             for mot in driver.motors:
                 print(f"  {mot.debug_str()}")
 
         await asyncio.sleep(0.05)
+
 
 @main.command()
 async def fix_configs_command():

@@ -197,8 +197,8 @@ class MotorDriver:
 
         # Interpret motor controller status and error bits
         OError = odrive.enums.ODriveError
-        estop = (state == odrive.enums.AxisState.IDLE and not en)
-        mo.is_active = (state == odrive.enums.AxisState.CLOSED_LOOP_CONTROL)
+        estop = state == odrive.enums.AxisState.IDLE and not en
+        mo.is_active = state == odrive.enums.AxisState.CLOSED_LOOP_CONTROL
         status_words = [
             "ESTOP" if estop else odrive.enums.AxisState(state).name,
             *("why+now:" + e.name for e in OError(rcode & acode)),
