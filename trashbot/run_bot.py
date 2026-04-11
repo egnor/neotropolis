@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+
+import asyncclick as click
+import asyncio
+import ok_logging_setup
+import ok_serial
+import logging
+import time
+
+import trashbot.motor_driver
+import trashbot.radio_driver
+
+
+@click.command()
+@click.option("--debug", is_flag=True)
+async def main(debug):
+    ok_logging_options = {
+        "OK_LOGGING_LEVEL": "debug" if debug else "info",
+        "OK_LOGGING_REPEAT_PER_MINUTE": 60,
+        "OK_LOGGING_TIME_FORMAT": "%H:%M:%S",
+    }
+    ok_logging_setup.install(ok_logging_options)
+    ok_logging_setup.skip_traceback_for(ok_serial.SerialException)
+    ok_logging_setup.skip_traceback_for(trashbot.motor_driver.MotorError)
+
+    logging.info("📻️ Connecting to radio...")
+    serial = ok_serial.SerialConnection(
+        match=trashbot.radio_driver.BOT_PORT,
+        baud=trashbot.radio_driver.BOT_BAUD,
+    )
+    rdriver = trashbot.radio_driver.RadioDriver(serial)
+
+    logging.info("⚙️ Connecting to motors...")
+    mdriver = await trashbot.motor_driver.connect()
+
+    start_mtime = time.monotonic()
+    motor_mtime = start_mtime
+    print_mtime = start_mtime
+    telemetry_mtime = start_mtime
+
+    logging.info("🔄 Starting main loop...")
+    status = "Ini"
+    while True:
+        await asyncio.sleep(0.01)
+        mtime = time.monotonic()
+
+        while rdriver.read_frame():
+            pass
+
+        if mtime >= motor_mtime:
+            motor_mtime += 0.05
+            vels = [0, 0]
+            if not (channels := rdriver.recent.get("RCChannelsPacked")):
+                status = "!RC"
+            elif channels.mtime < mtime - 0.1:
+                status = "Old"
+            elif channels.scaled_values[4] < 0.1:
+                status = "!Arm"
+            elif any(abs(v) > 1.0 for v in channels.scaled_values[:5]):
+                status = "Inv"
+            else:
+                status = ">"
+                forward = channels.scaled_values[2]
+                steer = channels.scaled_values[0]
+                vels = [forward * 10 - steer * 5, forward * 10 + steer * 5]
+                vels = [0 if abs(v) < 0.1 else v for v in vels]
+
+            for mo, vel in zip(mdriver.motors, vels):
+                mo.command_vel = vel
+                mo.command_fresh = True
+
+            await mdriver.refresh()
+
+        if mtime >= telemetry_mtime:
+            telemetry_mtime += 0.1
+            send_telemetry(
+                status=status,
+                mdriver=mdriver,
+                rdriver=rdriver,
+            )
+
+        if mtime >= print_mtime:
+            print_mtime += 1.0
+            logging.info("\nTRASHBOT STATUS %s", status)
+            for mo in mdriver.motors:
+                logging.info(f"⚙️ {mo.debug_str()}")
+
+
+def abbrev(text):
+    if "_" in text:
+        return "".join(w[:2].title() for w in text.split("_"))
+    return text[:3].title()
+
+
+def send_telemetry(*, status, mdriver, rdriver):
+    if all(mo.is_active for mo in mdriver.motors):
+        text = ">"
+    elif all(mo.state == mdriver.motors[0].state for mo in mdriver.motors):
+        text = abbrev(mdriver.motors[0].state)
+    else:
+        text = "/".join(abbrev(mo.state) for mo in mdriver.motors)
+
+    text += " " + status
+
+    for err in set.union(*(mo.errors for mo in mdriver.motors)):
+        text += " " + abbrev(err)
+
+    while len(text) > 15:
+        text = " ".join(text.split()[:-1]) + "+"
+
+    rdriver.send_frame(type="FlightMode", flight_mode=text)
+
+    rdriver.send_frame(
+        type="BatterySensor",
+        voltage_v=min(mo.bus_volts for mo in mdriver.motors),
+        current_a=0,  # TODO: maybe capture motor current?
+        capacity_used_mah=0,  # no battery model
+        remaining_pct=0,  # no battery model
+    )
+
+
+if __name__ == "__main__":
+    main()

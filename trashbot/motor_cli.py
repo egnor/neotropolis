@@ -29,20 +29,20 @@ async def check_command():
 @click.option("--secs", default=2.0)
 async def go_command(vel, vel2, secs):
     driver = await trashbot.motor_driver.connect()
-    stop_mt = time.monotonic() + secs
-    print_mt = time.monotonic()
+    stop_mtime = time.monotonic() + secs
+    print_mtime = time.monotonic()
     driver.motors[0].command_vel = vel
     driver.motors[1].command_vel = vel2 if vel2 is not None else vel
     while True:
-        if (mt := time.monotonic()) >= stop_mt:
+        if (mtime := time.monotonic()) >= stop_mtime:
             break
 
         driver.motors[0].command_fresh = driver.motors[1].command_fresh = True
         await driver.refresh()
 
-        if mt >= print_mt:
-            print_mt += 0.25
-            print(f"MOTOR GO {stop_mt - mt:.2f}s REMAINING")
+        if mtime >= print_mtime:
+            print_mtime += 0.25
+            print(f"MOTOR GO {stop_mtime - mtime:.2f}s REMAINING")
             for mot in driver.motors:
                 print(f"  {mot.debug_str()}")
 

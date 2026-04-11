@@ -10,9 +10,9 @@ import collections.abc
 import fastcrc
 import logging
 from construct import (
-    Array,
+    Adapter,
     BitStruct,
-    BitsInteger,
+    Bytes,
     Checksum,
     Const,
     ConstructError,
@@ -32,7 +32,6 @@ from construct import (
     Mapping,
     Optional,
     Padding,
-    Pass,
     Prefixed,
     RawCopy,
     Struct,
@@ -86,11 +85,17 @@ frame_type = Enum(
 )
 
 
-def _Scaled(subcon, scale, offset=0.0):
-    """val = raw * scale + offset, raw = round((val - offset) / scale)."""
+def _Scaled(subcon, scale, offset=0.0, digits=0):
+    """val = raw * scale + offset, raw = round((val - offset) / scale).
+    If digits is nonzero, decoded values are rounded to that many decimals."""
+
+    def decode(obj, ctx):
+        val = obj * scale + offset
+        return round(val, digits) if digits else val
+
     return ExprAdapter(
         subcon,
-        decoder=lambda obj, ctx: obj * scale + offset,
+        decoder=decode,
         encoder=lambda obj, ctx: round((obj - offset) / scale),
     )
 
@@ -102,11 +107,40 @@ _CH_SCALE = 2.0 / (_CH_MAX - _CH_MIN)
 _CH_OFFSET = -0.5 * (_CH_MIN + _CH_MAX) * _CH_SCALE
 
 # ELRS sends raw channel value 0 on link loss/failsafe, which scales to this.
-# Any channel value outside ±1.0 is beyond normal range; this value (~-1.21)
+# Any channel value outside ±1.0 is beyond normal range; this value (-1.21)
 # specifically indicates the receiver has no link.
-CHANNEL_FAILSAFE = _CH_OFFSET
+CHANNEL_FAILSAFE = round(_CH_OFFSET, 3)
 
-_rc_channel = _Scaled(BitsInteger(11), _CH_SCALE, _CH_OFFSET)
+
+class _RCChannels(Adapter):
+    """Pack/unpack 16 × 11-bit channels matching the ELRS wire format.
+
+    The CRSF spec describes RCChannelsPacked as a C bitfield (crsf_channels_s
+    in ExpressLRS's crsf_protocol.h), declared with __attribute__((packed)).
+    On ELRS's little-endian GCC targets, that means fields are packed LSB-first
+    across the byte stream: ch0 occupies bits 0..10, ch1 bits 11..21, etc., of
+    the 22-byte payload interpreted as a little-endian integer. (The spec's
+    "big-endian" note refers to multi-byte scalars, not bitfield order.)
+
+    Construct's built-in BitStruct reads bits MSB-first, which is wrong here
+    and causes neighboring channels to bleed into each other, so we do the
+    bit-slicing directly on a raw byte payload.
+    """
+
+    def _decode(self, data, ctx, path):
+        val = int.from_bytes(data, "little")
+        return [
+            round(((val >> (11 * i)) & 0x7FF) * _CH_SCALE + _CH_OFFSET, 3)
+            for i in range(16)
+        ]
+
+    def _encode(self, obj, ctx, path):
+        val = 0
+        for i, ch in enumerate(obj):
+            raw = round((ch - _CH_OFFSET) / _CH_SCALE)
+            val |= (raw & 0x7FF) << (11 * i)
+        return val.to_bytes(22, "little")
+
 
 _elrs_status_byte = BitStruct(
     Padding(6),
@@ -114,8 +148,8 @@ _elrs_status_byte = BitStruct(
     "armed_switch" / Flag,
 )
 
-_rc_channels_payload = BitStruct(
-    "scaled_values" / Array(16, _rc_channel),
+_rc_channels_payload = Struct(
+    "scaled_values" / _RCChannels(Bytes(22)),
     "elrs_status" / Optional(_elrs_status_byte),  # ELRS extension
 )
 
@@ -191,28 +225,30 @@ _frame_data = Prefixed(
 frame = FocusedSeq("data", "sync" / Const(b"\xc8"), "data" / _frame_data)
 
 
-def parse_frame(input: collections.abc.Buffer) -> dict:
+def parse_frame(input: collections.abc.Buffer) -> Container:
     result = frame.parse(input)
     return Container(type=result.value.type, **result.value.payload)
 
 
-def build_frame(type: str, **rest) -> bytes:
+def build_frame(*, type: str, **rest) -> bytes:
     return frame.build({"value": {"type": type, "payload": rest}})
 
 
-def consume_frame(buffer: bytearray) -> dict | None:
+def consume_frame(buffer: bytearray) -> Container | None:
     while len(buffer) >= 4:
         # Scan for sync byte
-        idx = buffer.find(frame.sync.value)
-        if idx < 0:
+        sync_index = buffer.find(frame.sync.value)
+        if sync_index < 0:
             buffer.clear()
             break
-        if idx > 0:
-            del buffer[:idx]
+        if sync_index > 0:
+            log.debug("Skipping %d bytes", sync_index)
+            del buffer[:sync_index]
             continue
 
         frame_size = buffer[1] + 2
         if not 4 <= frame_size <= 64:
+            log.debug("Bad frame size: %d", frame_size)
             del buffer[:1]
             continue
         if len(buffer) < frame_size:
@@ -221,6 +257,7 @@ def consume_frame(buffer: bytearray) -> dict | None:
         try:
             parsed_frame = parse_frame(buffer[:frame_size])
             del buffer[:frame_size]
+            log.debug("Received frame type=%s", parsed_frame["type"])
             return parsed_frame
         except ConstructError as e:
             log.debug("Bad frame: %s", e)

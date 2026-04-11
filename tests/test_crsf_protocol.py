@@ -33,7 +33,7 @@ def test_channels_center():
     )
     parsed = trashbot.crsf_protocol._rc_channels_payload.parse(encoded)
     for i, v in enumerate(parsed.scaled_values):
-        assert abs(v) < 0.001, f"ch{i} center: {v}"
+        assert abs(v) <= 0.001, f"ch{i} center: {v}"
 
 
 def test_channels_limits():

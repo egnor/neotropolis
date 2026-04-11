@@ -40,7 +40,9 @@ class Motor:
 
     bus_volts: float = 0.0
     is_active: bool = False
-    status_text: str = ""
+    state: str = ""
+    reason: str = ""
+    errors: set[str] = dataclasses.field(default_factory=set)
     timeout_count: int = 0
 
     command_vel: float = 0.0
@@ -54,6 +56,12 @@ class Motor:
         return f"M{self.odrive.effective_node_id}:{self.odrive.serial_number}"
 
     def debug_str(self):
+        status_words = [
+            self.state,
+            *(f"why+now:{e}" for e in self.errors & {self.reason}),
+            *(f"why:{e}" for e in {self.reason} - self.errors if e),
+            *(f"now:{e}" for e in self.errors - {self.reason}),
+        ]
         return (
             f"M{self.odrive.effective_node_id} {self.debug_emoji()}"
             f" C{self.command_vel:+.1f}"
@@ -61,16 +69,16 @@ class Motor:
             f" F{self.feed_torq:+05.1f}"
             f" I{self.integ_torq:+05.1f}"
             f" {self.bus_volts:+.1f}V"
-            f" {self.status_text}"
+            f" {' '.join(status_words)}"
         )
 
     def debug_emoji(self):
         if not self.is_active and self.estim_vel <= -0.01:
-            return "⬅️💤"
+            return "⬅️" + ("⛔" if self.state == "ESTOP" else "💤")
         elif not self.is_active and self.estim_vel >= 0.01:
-            return "💤➡️"
+            return ("⛔" if self.state == "ESTOP" else "💤") + "➡️"
         elif not self.is_active:
-            return "💤🔷"
+            return "⛔" if self.state == "ESTOP" else "💤"
         elif self.command_vel <= -0.001 and self.estim_vel <= -0.001:
             return "◀️⬅️"
         elif self.command_vel <= -0.001 and -0.01 <= self.estim_vel <= 0.01:
@@ -84,11 +92,11 @@ class Motor:
         elif self.command_vel >= 0.001:
             return "⬅️⚠️▶️"
         elif self.estim_vel <= -0.01:
-            return "⬅️⚠️🛑"
+            return "⬅️⚠️⏹️"
         elif self.estim_vel >= 0.01:
-            return "🛑⚠️➡️"
+            return "⏹️⚠️➡️"
         else:
-            return "🛑🔷"
+            return "⏹️🔷"
 
 
 class MotorDriver:
@@ -199,13 +207,9 @@ class MotorDriver:
         OError = odrive.enums.ODriveError
         estop = state == odrive.enums.AxisState.IDLE and not en
         mo.is_active = state == odrive.enums.AxisState.CLOSED_LOOP_CONTROL
-        status_words = [
-            "ESTOP" if estop else odrive.enums.AxisState(state).name,
-            *("why+now:" + e.name for e in OError(rcode & acode)),
-            *("why:" + e.name for e in OError(rcode & ~acode)),
-            *("now:" + e.name for e in OError(acode & ~rcode)),
-        ]
-        mo.status_text = " ".join(status_words)
+        mo.state = "ESTOP" if estop else odrive.enums.AxisState(state).name
+        mo.reason = OError(rcode).name if rcode else ""
+        mo.errors = {e.name for e in OError(acode)}
         mo.bus_volts = vbus
 
         # Copy (and translate) controller diagnostic variables
@@ -213,21 +217,16 @@ class MotorDriver:
         mo.estim_vel = vel * flip
         mo.integ_torq = integ * flip
 
-        # Compute torque feedforward
-        # other_mo = self.motors[1 if mo is self.motors[0] else 0]
-        # diff_vel = mo.command_vel - other_mo.command_vel
-
         mo.feed_torq = 0
-        # if diff_vel * mo.command_vel < 0 and abs(diff_vel) > 0.01:
-        #     mo.feed_torq += math.copysign(10.0, diff_vel)
         if abs(mo.command_vel) >= 0.01:
             mo.feed_torq += math.copysign(10.0, mo.command_vel)
             mo.feed_torq += 1.0 * mo.command_vel
 
         # Send motor command (zero for safety when not active)
+        all_active = all(om.is_active for om in self.motors)
         if mo.command_fresh:
             od = mo.odrive
-            if mo.is_active:
+            if all_active:
                 set_vel = mo.command_vel * flip
                 set_torq = mo.feed_torq * flip
                 await od.write("axis0.controller.input_vel", set_vel)
