@@ -17,9 +17,10 @@ import trashbot.radio_driver
 @click.option("--debug", is_flag=True)
 @click.option("--bot", is_flag=True)
 @click.option("--base", is_flag=True)
-@click.option("--port")
-@click.option("--baud", type=int)
-def main(debug, bot, base, port=None, baud=0):
+@click.option("--port", default=None)
+@click.option("--baud", type=int, default=0)
+@click.option("--ping", is_flag=True)
+def main(debug, bot, base, port, baud, ping):
     ok_logging_setup.install({"OK_LOGGING_LEVEL": "debug" if debug else "info"})
     ok_logging_setup.skip_traceback_for(ok_serial.SerialException)
 
@@ -37,12 +38,20 @@ def main(debug, bot, base, port=None, baud=0):
     if not (port and baud):
         raise click.ClickException("Set --bot OR --base OR --port and --baud")
 
-    logging.info(f"📻 Connecting to {port} {baud}bps...")
+    logging.info(f'📻 Connecting to "{port}"...')
     serial = ok_serial.SerialConnection(match=port, baud=baud)
     radio = trashbot.radio_driver.RadioDriver(serial)
 
+    start_mtime = time.monotonic()
+    ping_mtime = start_mtime if ping else 0
+
     stdin_buffer = bytearray()
     while True:
+        mtime = time.monotonic()
+        if ping_mtime and mtime > ping_mtime:
+            ping_mtime = ping_mtime + 0.1
+            radio.send_frame(type="DevicePing", dest_addr=0, origin_addr=0xEA)
+
         while frame := radio.poll_frame():
             print(json.dumps(to_pod(frame)))
 

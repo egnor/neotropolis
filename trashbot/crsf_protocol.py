@@ -39,7 +39,7 @@ from construct import (
     this,
 )
 
-log = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 # All known frame types, for reference (we do not support most of them)
 frame_type = Enum(
@@ -67,7 +67,7 @@ frame_type = Enum(
     MAVLink=0x1F,
     FlightMode=0x21,
     ESPNOW=0x22,
-    # Extended frame types (dest_addr + orig_addr precede payload)
+    # Extended frame types (dest_addr + origin_addr precede payload)
     DevicePing=0x28,
     DeviceInfo=0x29,
     ParameterSettingsEntry=0x2B,
@@ -181,11 +181,31 @@ _flight_mode_payload = Struct(
     "flight_mode" / CString("utf8"),
 )
 
-# Extended frame: dest_addr and orig_addr precede the subtype/payload.
+# Sent to query a device (0 for broadcast).
+# Extended frame: dest_addr and origin_addr precede the subtype/payload.
+_device_ping_payload = Struct(
+    "dest_addr" / Int8ub,
+    "origin_addr" / Int8ub,
+)
+
+# Sent in response to ping.
+# Extended frame: dest_addr and origin_addr precede the subtype/payload.
+_device_info_payload = Struct(
+    "dest_addr" / Int8ub,
+    "origin_addr" / Int8ub,
+    "device_name" / CString("utf8"),
+    "serial_number" / Int32ub,
+    "hardware_id" / Int32ub,
+    "firmware_id" / Int32ub,
+    "parameters_total" / Int8ub,
+    "parameter_version_number" / Int8ub,
+)
+
 # ELRS TX sends this every ~200ms to tell the host the desired RC packet rate.
+# Extended frame: dest_addr and origin_addr precede the subtype/payload.
 _remote_related_payload = Struct(
     "dest_addr" / Int8ub,
-    "orig_addr" / Int8ub,
+    "origin_addr" / Int8ub,
     "sub_type" / Int8ub,  # 0x10 = timing, 0x3C = game
     "rate_us" / _Scaled(Int32ub, 0.1),  # desired RC packet interval
     "offset_us" / _Scaled(Int32sb, 0.1),  # phase offset for sync
@@ -202,6 +222,8 @@ _frame_payload = Switch(
         "LinkStatistics": _link_statistics_payload,
         "BatterySensor": _battery_sensor_payload,
         "FlightMode": _flight_mode_payload,
+        "DevicePing": _device_ping_payload,
+        "DeviceInfo": _device_info_payload,
         "RemoteRelated": _remote_related_payload,
         "Heartbeat": _heartbeat_payload,
     },
@@ -242,13 +264,13 @@ def consume_frame(buffer: bytearray) -> Container | None:
             buffer.clear()
             break
         if sync_index > 0:
-            log.debug("Skipping %d bytes", sync_index)
+            _log.warn("Skipping %d bytes", sync_index)
             del buffer[:sync_index]
             continue
 
         frame_size = buffer[1] + 2
         if not 4 <= frame_size <= 64:
-            log.debug("Bad frame size: %d", frame_size)
+            _log.warn("Bad frame size: %d", frame_size)
             del buffer[:1]
             continue
         if len(buffer) < frame_size:
@@ -257,10 +279,9 @@ def consume_frame(buffer: bytearray) -> Container | None:
         try:
             parsed_frame = parse_frame(buffer[:frame_size])
             del buffer[:frame_size]
-            log.debug("Received frame type=%s", parsed_frame["type"])
             return parsed_frame
         except ConstructError as e:
-            log.debug("Bad frame: %s", e)
+            _log.warn("Bad frame: %s", e)
             del buffer[:1]  # skip sync byte, re-sync
 
     return None

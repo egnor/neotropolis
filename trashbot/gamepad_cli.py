@@ -16,7 +16,8 @@ def main(debug, device):
 
     if device:
         dev = evdev.InputDevice(device)
-        gamepad = trashbot.gamepad_driver.GamepadDriver(dev)
+        caps = dev.capabilities()
+        gamepad = trashbot.gamepad_driver.GamepadDriver(dev=dev, caps=caps)
     else:
         gamepad = trashbot.gamepad_driver.connect()
 
