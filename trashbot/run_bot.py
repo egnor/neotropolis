@@ -44,7 +44,7 @@ async def main(debug):
         await asyncio.sleep(0.01)
         mtime = time.monotonic()
 
-        while rdriver.read_frame():
+        while rdriver.poll_frame():
             pass
 
         if mtime >= motor_mtime:

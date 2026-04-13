@@ -65,11 +65,10 @@ Remote audio/video (trashbot to operator)
 Operator control station
 
 - [Raspberry Pi 5](https://www.raspberrypi.com/products/raspberry-pi-5/)
-- HDMI TV for video feed
-- Analog (CVBS) to HDMI converter (for 1.3GHz analog video)
+- TV (with CVBS input) for video feed
+- Display for system status (armed state, battery, RSSI, link quality)
 - Second display or StreamDeck keys for status (battery, RSSI, link quality)
-- USB gamepad (TBD, something with cyberpunk aesthetic; not a standard RC
-  controller). Control mapping happens on operator Pi, not robot side.
+- USB gamepad for driving the robot
 - 2x [StreamDeck XL](https://www.elgato.com/us/en/p/stream-deck-plus-xl) for
   emoji selection, lighting control, and other aux functions
 - ref: [streamdeck Python library](https://github.com/abcminiuser/python-elgato-streamdeck)

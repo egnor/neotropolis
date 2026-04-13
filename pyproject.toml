@@ -11,6 +11,7 @@ dependencies = [
   "python-can>=4.6.1",
   "pyusb>=1.3.1",
   "ok-serial[cli]>=0.3.1",
+  "evdev>=1.7",
 ]
 description = "Neotropolis project code"
 name = "egnor-neotropolis"
@@ -20,6 +21,7 @@ version = "0.0"
 
 [project.scripts]
 motor = "trashbot.motor_cli:main"
+gamepad = "trashbot.gamepad_cli:main"
 radio = "trashbot.radio_cli:main"
 run_bot = "trashbot.run_bot:main"
 

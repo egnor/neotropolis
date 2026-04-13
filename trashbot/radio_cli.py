@@ -43,7 +43,7 @@ def main(debug, bot, base, port=None, baud=0):
 
     stdin_buffer = bytearray()
     while True:
-        while frame := radio.read_frame():
+        while frame := radio.poll_frame():
             print(json.dumps(to_pod(frame)))
 
         rfd, _, _ = select.select([0], [], [], 0)

@@ -23,7 +23,7 @@ class RadioDriver:
         self.buffer = bytearray()
         self.recent = {}
 
-    def read_frame(self) -> construct.Container | None:
+    def poll_frame(self) -> construct.Container | None:
         self.buffer.extend(self.serial.read_sync(timeout=0))
         if frame := trashbot.crsf_protocol.consume_frame(self.buffer):
             frame.mtime = time.monotonic()
