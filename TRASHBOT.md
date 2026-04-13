@@ -54,7 +54,7 @@ Remote audio/video (trashbot to operator)
 - [8W 1.3GHz analog VTX/VRX](https://www.kimpok.com/sale-51038869-1-2g-1-3g-fpv-vrx-vtx-8w-wireless-video-receiver-and-transmitter-long-range-transmission.html)
   - Tx pigtail (10cm) JST-PH: GND, audio, 12V, video
   - Tx PCB Picoblade: GND, audio, 12V, video
-- [Foxeer Mini Cat 4 analog camera](https://www.foxeer.com/foxeer-mini-cat-4-1200tvl-starlight-fpv-camera-g-614)
+- [Foxeer T-Rex Mini analog camera](https://www.foxeer.com/foxeer-t-rex-mini-1500tvl-6ms-low-latency-super-wdr-fpv-camera-g-314)
   - 5-pin Picoblade: VCC, GND, VID, (OSD), (VSEN)
 - [CCTV 12V microphone](https://www.amazon.com/dp/B07G88FY8M)
   - pigtail with GND, +12V, audio out
