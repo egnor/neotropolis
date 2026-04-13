@@ -37,6 +37,7 @@ async def main(debug):
     motor_mtime = start_mtime
     print_mtime = start_mtime
     telemetry_mtime = start_mtime
+    unready_mtime = start_mtime
 
     logging.info("🔄 Starting main loop...")
     status = "Ini"
@@ -49,6 +50,7 @@ async def main(debug):
 
         if mtime >= motor_mtime:
             motor_mtime += 0.05
+            all_active = all(mo.is_active for mo in mdriver.motors)
             vels = [0, 0]
             if not (channels := rdriver.recent.get("RCChannelsPacked")):
                 status = "!RC"
@@ -58,12 +60,25 @@ async def main(debug):
                 status = "!Arm"
             elif any(abs(v) > 1.0 for v in channels.scaled_values[:5]):
                 status = "Inv"
+            elif not all_active and channels.scaled_values[2] > 0.05:
+                status = "Thr+"
+            elif not all_active and channels.scaled_values[2] < -0.05:
+                status = "Thr-"
+            elif not all_active and channels.scaled_values[0] > 0.05:
+                status = "Rot+"
+            elif not all_active and channels.scaled_values[0] < -0.05:
+                status = "Rot-"
+            elif unready_mtime > mtime - 2.0:
+                status = "Wait"
             else:
                 status = ">"
-                forward = channels.scaled_values[2]
-                steer = channels.scaled_values[0]
-                vels = [forward * 10 - steer * 5, forward * 10 + steer * 5]
+                throttle = channels.scaled_values[2]
+                rotate = channels.scaled_values[0]
+                vels = [throttle * 10 - rotate * 5, throttle * 10 + rotate * 5]
                 vels = [0 if abs(v) < 0.1 else v for v in vels]
+
+            if status not in ("Wait", ">"):
+                unready_mtime = mtime
 
             for mo, vel in zip(mdriver.motors, vels):
                 mo.command_vel = vel

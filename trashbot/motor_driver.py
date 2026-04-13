@@ -104,7 +104,12 @@ class MotorDriver:
         _log.info(f"🔎 Scanning for motors on {can_iface}...")
 
         # check for other processes using CAN bus
-        rcvlist_lines = open("/proc/net/can/rcvlist_all").readlines()
+        try:
+            rcvlist_lines = open("/proc/net/can/rcvlist_all").readlines()
+        except FileNotFoundError:
+            # /proc/net/can doesn't exist before the first socket open
+            rcvlist_lines = []
+
         if any(s.split()[:1] == [can_iface] for s in rcvlist_lines):
             raise MotorError(f"{can_iface} interface in use")
 
