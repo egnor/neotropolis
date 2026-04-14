@@ -40,7 +40,7 @@ async def main(debug):
     unready_mtime = start_mtime
 
     logging.info("🔄 Starting main loop...")
-    status = "Ini"
+    command_status = "Ini"
     while True:
         await asyncio.sleep(0.01)
         mtime = time.monotonic()
@@ -53,31 +53,31 @@ async def main(debug):
             all_active = all(mo.is_active for mo in mdriver.motors)
             vels = [0, 0]
             if not (channels := rdriver.recent.get("RCChannelsPacked")):
-                status = "!RC"
+                command_status = "!RC"
             elif channels.mtime < mtime - 0.1:
-                status = "Old"
+                command_status = "Old"
             elif channels.scaled_values[4] < 0.1:
-                status = "!Arm"
+                command_status = "!Arm"
             elif any(abs(v) > 1.0 for v in channels.scaled_values[:5]):
-                status = "Inv"
+                command_status = "Inv"
             elif not all_active and channels.scaled_values[2] > 0.05:
-                status = "Thr+"
+                command_status = "Thr+"
             elif not all_active and channels.scaled_values[2] < -0.05:
-                status = "Thr-"
+                command_status = "Thr-"
             elif not all_active and channels.scaled_values[0] > 0.05:
-                status = "Rot+"
+                command_status = "Rot+"
             elif not all_active and channels.scaled_values[0] < -0.05:
-                status = "Rot-"
+                command_status = "Rot-"
             elif unready_mtime > mtime - 2.0:
-                status = "Wait"
+                command_status = "Wait"
             else:
-                status = ">"
+                command_status = "Ok"
                 throttle = channels.scaled_values[2]
                 rotate = channels.scaled_values[0]
                 vels = [throttle * 10 - rotate * 5, throttle * 10 + rotate * 5]
                 vels = [0 if abs(v) < 0.1 else v for v in vels]
 
-            if status not in ("Wait", ">"):
+            if command_status not in ("Wait", "Ok"):
                 unready_mtime = mtime
 
             for mo, vel in zip(mdriver.motors, vels):
@@ -89,14 +89,14 @@ async def main(debug):
         if mtime >= telemetry_mtime:
             telemetry_mtime += 0.1
             send_telemetry(
-                status=status,
+                command_status=command_status,
                 mdriver=mdriver,
                 rdriver=rdriver,
             )
 
         if mtime >= print_mtime:
             print_mtime += 1.0
-            logging.info("\nTRASHBOT STATUS %s", status)
+            logging.info("\nTRASHBOT COMMAND: %s", command_status)
             for mo in mdriver.motors:
                 logging.info(f"⚙️ {mo.debug_str()}")
 
@@ -107,19 +107,18 @@ def abbrev(text):
     return text[:3].title()
 
 
-def send_telemetry(*, status, mdriver, rdriver):
+def send_telemetry(*, command_status, mdriver, rdriver):
     if all(mo.is_active for mo in mdriver.motors):
-        text = ">"
+        motor_status = "Go"
     elif all(mo.state == mdriver.motors[0].state for mo in mdriver.motors):
-        text = abbrev(mdriver.motors[0].state)
+        motor_status = abbrev(mdriver.motors[0].state)
     else:
-        text = "/".join(abbrev(mo.state) for mo in mdriver.motors)
-
-    text += " " + status
+        motor_status = "/".join(abbrev(mo.state) for mo in mdriver.motors)
 
     for err in set.union(*(mo.errors for mo in mdriver.motors)):
-        text += " " + abbrev(err)
+        motor_status += " " + abbrev(err)
 
+    text = f"C:{command_status} M:{motor_status}"
     while len(text) > 15:
         text = " ".join(text.split()[:-1]) + "+"
 
