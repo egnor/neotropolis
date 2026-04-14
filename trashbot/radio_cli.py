@@ -20,7 +20,8 @@ import trashbot.radio_driver
 @click.option("--port", default=None)
 @click.option("--baud", type=int, default=0)
 @click.option("--ping", is_flag=True)
-def main(debug, bot, base, port, baud, ping):
+@click.option("--reboot", is_flag=True)
+def main(debug, bot, base, port, baud, ping, reboot):
     ok_logging_setup.install({"OK_LOGGING_LEVEL": "debug" if debug else "info"})
     ok_logging_setup.skip_traceback_for(ok_serial.SerialException)
 
@@ -42,6 +43,10 @@ def main(debug, bot, base, port, baud, ping):
     serial = ok_serial.SerialConnection(match=port, baud=baud)
     radio = trashbot.radio_driver.RadioDriver(serial)
 
+    if reboot:
+        logging.info("🔄 Attempting to reboot radio...")
+        radio.attempt_reboot()
+
     start_mtime = time.monotonic()
     ping_mtime = start_mtime if ping else 0
 
@@ -50,6 +55,7 @@ def main(debug, bot, base, port, baud, ping):
         mtime = time.monotonic()
         if ping_mtime and mtime > ping_mtime:
             ping_mtime = ping_mtime + 0.1
+            logging.info("🛜 Sending DevicePing request...")
             radio.send_frame(type="DevicePing", dest_addr=0, origin_addr=0xEA)
 
         while frame := radio.poll_frame():

@@ -24,6 +24,7 @@ class RadioDriver:
         self.serial = serial
         self.buffer = bytearray()
         self.recent: dict[str, construct.Container] = {}
+        self.reboot_mtime = 0
 
     def poll_frame(self) -> construct.Container | None:
         self.buffer.extend(self.serial.read_sync(timeout=0))
@@ -31,9 +32,18 @@ class RadioDriver:
             _log.debug("Received frame: %s", frame.type)
             frame["mtime"] = time.monotonic()
             self.recent[frame.type] = frame
+        elif self.reboot_mtime and time.monotonic() > self.reboot_mtime:
+            self.reboot_mtime = 0
+            self.serial.set_signals(rts=True)
         return frame
 
     def send_frame(self, **frame):
         frame_bytes = trashbot.crsf_protocol.build_frame(**frame)
         _log.debug("Sending frame: %s [%r]", frame["type"], frame_bytes)
         self.serial.write(trashbot.crsf_protocol.build_frame(**frame))
+
+    def attempt_reboot(self):
+        """Cycles DSR to reboot the radio ESP32. Only works on the base,
+        since the bot doesn't have control signals."""
+        self.serial.set_signals(rts=False)
+        self.reboot_mtime = time.monotonic() + 0.050
