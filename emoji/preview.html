@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Emoji curation preview</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 1rem; background: #fafafa; }
+  header { position: sticky; top: 0; background: #fafafa; padding: 0.5rem 0;
+           border-bottom: 1px solid #ccc; z-index: 10; }
+  header label { margin-right: 1rem; font-size: 0.9rem; }
+  #counts { font-size: 0.85rem; color: #555; margin-left: 0.5rem; }
+  h2 { margin: 1.5rem 0 0.25rem; font-size: 1.1rem; }
+  h3 { margin: 0.75rem 0 0.25rem; font-size: 0.9rem; color: #666;
+       text-transform: uppercase; letter-spacing: 0.05em; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 4px; }
+  .cell { position: relative; padding: 4px; border: 1px solid transparent;
+          border-radius: 4px; text-align: center; font-size: 0.65rem;
+          line-height: 1.1; word-break: break-word; }
+  .cell img { width: 48px; height: 48px; display: block; margin: 0 auto 2px; }
+  .cell.candidate { background: #e8f5e9; border-color: #a5d6a7; }
+  .cell.included  { background: #bbdefb; border-color: #64b5f6; }
+  .cell.excluded  { background: #f5f5f5; border-color: #e0e0e0; opacity: 0.55; }
+  .cell .reason { color: #b71c1c; font-style: italic; }
+  .cell .name { color: #333; }
+  .cell .cp { color: #999; font-family: monospace; font-size: 0.6rem; }
+</style>
+</head>
+<body>
+<header>
+  <strong>Emoji curation</strong>
+  <label>Status:
+    <select id="f-status">
+      <option value="all">all</option>
+      <option value="candidate" selected>candidate</option>
+      <option value="included">included</option>
+      <option value="excluded">excluded</option>
+    </select>
+  </label>
+  <label>Reason:
+    <select id="f-reason"><option value="">(any)</option></select>
+  </label>
+  <label>Group:
+    <select id="f-group"><option value="">(any)</option></select>
+  </label>
+  <label><input type="checkbox" id="f-meta"> show codepoints/reason</label>
+  <span id="counts"></span>
+</header>
+<main id="out">loading…</main>
+
+<script>
+const JOY_DIR = "/joypixels/";
+
+async function loadTsv() {
+  const text = await fetch("emoji_curation.tsv").then(r => r.text());
+  const lines = text.trim().split("\n");
+  const header = lines.shift().split("\t");
+  return lines.map(line => {
+    const cells = line.split("\t");
+    const row = {};
+    header.forEach((h, i) => row[h] = cells[i] ?? "");
+    return row;
+  });
+}
+
+function render(rows) {
+  const fStatus = document.getElementById("f-status").value;
+  const fReason = document.getElementById("f-reason").value;
+  const fGroup = document.getElementById("f-group").value;
+  const showMeta = document.getElementById("f-meta").checked;
+  const out = document.getElementById("out");
+  out.innerHTML = "";
+
+  const filtered = rows.filter(r =>
+    (fStatus === "all" || r.status === fStatus) &&
+    (fReason === "" || r.reason === fReason) &&
+    (fGroup === "" || r.group === fGroup)
+  );
+
+  document.getElementById("counts").textContent =
+    `showing ${filtered.length} of ${rows.length}`;
+
+  let curGroup = null, curSub = null, gridEl = null;
+  for (const r of filtered) {
+    if (r.group !== curGroup) {
+      const h2 = document.createElement("h2");
+      h2.textContent = r.group;
+      out.appendChild(h2);
+      curGroup = r.group; curSub = null;
+    }
+    if (r.subgroup !== curSub) {
+      const h3 = document.createElement("h3");
+      h3.textContent = r.subgroup;
+      out.appendChild(h3);
+      gridEl = document.createElement("div");
+      gridEl.className = "grid";
+      out.appendChild(gridEl);
+      curSub = r.subgroup;
+    }
+    const cell = document.createElement("div");
+    cell.className = `cell ${r.status}`;
+    cell.title = `${r.name}\n${r.codepoints}\nstatus: ${r.status}${r.reason ? " (" + r.reason + ")" : ""}`;
+    let html = "";
+    if (r.joypixels_file) {
+      html += `<img src="${JOY_DIR}${r.joypixels_file}" loading="lazy" alt="${r.name}">`;
+    } else {
+      html += `<div style="height:48px;display:flex;align-items:center;justify-content:center;color:#999">?</div>`;
+    }
+    html += `<div class="name">${r.name}</div>`;
+    if (showMeta) {
+      html += `<div class="cp">${r.codepoints}</div>`;
+      if (r.reason) html += `<div class="reason">${r.reason}</div>`;
+    }
+    cell.innerHTML = html;
+    gridEl.appendChild(cell);
+  }
+}
+
+(async () => {
+  const rows = await loadTsv();
+  // Populate filter dropdowns
+  const reasonSel = document.getElementById("f-reason");
+  const groupSel = document.getElementById("f-group");
+  for (const v of [...new Set(rows.map(r => r.reason).filter(Boolean))].sort()) {
+    reasonSel.add(new Option(v, v));
+  }
+  for (const v of [...new Set(rows.map(r => r.group))]) {
+    groupSel.add(new Option(v, v));
+  }
+  ["f-status", "f-reason", "f-group", "f-meta"].forEach(id =>
+    document.getElementById(id).addEventListener("change", () => render(rows)));
+  render(rows);
+})();
+</script>
+</body>
+</html>

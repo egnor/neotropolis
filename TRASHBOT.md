@@ -74,7 +74,7 @@ Operator control station
 - Display for system status (armed state, battery, RSSI, link quality)
 - Second display or StreamDeck keys for status (battery, RSSI, link quality)
 - USB gamepad for driving the robot
-- 2x [StreamDeck XL](https://www.elgato.com/us/en/p/stream-deck-plus-xl) for
+- [StreamDeck XL](https://www.elgato.com/us/en/p/stream-deck-plus-xl) for
   emoji selection, lighting control, and other aux functions
 - ref: [streamdeck Python library](https://github.com/abcminiuser/python-elgato-streamdeck)
 
