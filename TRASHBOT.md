@@ -49,6 +49,11 @@ Remote control link (operator to trashbot, bidirectional)
 - ref: [crsf-parser Python library](https://github.com/AlessioMorale/crsf_parser)
 - ref: [elrs-joystick-control (USB CRSF)](https://github.com/kaack/elrs-joystick-control)
 
+Emoji displays ("eyes")
+
+- 2x [Beetronics 10" industrial HDMI monitor](https://www.beetronics.com/10-inch-monitor-4-3)
+  (9.7" diagonal, 1024x768 native, 4:3) -- installed and working
+
 Remote audio/video (trashbot to operator)
 
 - [8W 1.3GHz analog VTX/VRX](https://www.kimpok.com/sale-51038869-1-2g-1-3g-fpv-vrx-vtx-8w-wireless-video-receiver-and-transmitter-long-range-transmission.html)
@@ -73,7 +78,52 @@ Operator control station
   emoji selection, lighting control, and other aux functions
 - ref: [streamdeck Python library](https://github.com/abcminiuser/python-elgato-streamdeck)
 
-Open Questions
+## Control channel mapping
+
+Using ELRS "Wide" switch mode (default in firmware v3+) at 150-250Hz packet
+rate. The RX auto-follows whatever mode the TX is configured for; only TX
+needs config.
+
+| Ch    | Role (AETR) | Use                        | Over-the-air resolution |
+|-------|-------------|----------------------------|-------------------------|
+| 1     | aileron     | steering                   | 10 bit, every packet    |
+| 2     | elevator    | left eye emoji             | 10 bit, every packet    |
+| 3     | throttle    | drive throttle (fwd/back)  | 10 bit, every packet    |
+| 4     | rudder      | right eye emoji            | 10 bit, every packet    |
+| 5     | aux1        | arm                        | 1 bit, every packet     |
+| 6     | aux2        | radio PTT (bool)           | 6 bit, round-robin ~/7  |
+| 7-12  | aux3-8      | LED effects / TBD          | 6 bit, round-robin ~/7  |
+| 13-16 | -           | unused in Wide mode        | -                       |
+
+Encoding emoji on the stick channels (ele/rud) instead of splitting across
+aux channels is deliberate: 10 bit = 1024 slots fits the ~1400 base emoji
+count (after trimming skin tones, gender ZWJ sequences, and flags) with a
+little curation. A stock R/C controller will cycle through emoji when the
+right stick moves -- harmless -- and ch1/ch3 still drive the bot with no
+radio config. No commit protocol is needed: a dropped packet just stales
+the last value, never tears a split index.
+
+### CRSF / ELRS bit encoding
+
+CRSF carries 11 bits per channel on the wire (0-2047). The "normal" servo
+range 172-1811 maps linearly to 988-2012µs pulse widths (1500µs center
+at 992, scale 8/5 ticks per µs); values outside that range are "extended
+limits" used by ELRS to signal failsafe (raw 0) or overdrive.
+
+ELRS packs stick channels into 10 bits OTA, so 1024 distinct values survive
+end-to-end, not 2048. The CRSF -> OTA -> CRSF round trip is NOT the identity
+for arbitrary CRSF values -- it snaps to the nearest OTA grid point. To
+transmit a 10-bit index N losslessly, encode on the grid explicitly:
+
+    crsf_raw = 172 + round(N * 1639 / 1023)     # 1639 = 1811 - 172
+    N        = round((crsf_raw - 172) * 1023 / 1639)
+
+Aux channels in Wide mode carry 6 bits OTA (64 positions, spread across a
+subset of the CRSF range in ~25-unit steps). Hybrid mode uses a different
+encoding for ch6-11 (3 bit / 6 position), so standardize on Wide mode to
+keep aux grids stable across TX setups.
+
+## Open Questions
 
 - RANGE: ELRS Gemini Xrossband should give 1-3km+ even at ground level in a
   crowded RF environment. Probably fine for around the megablock; roaming the
@@ -83,7 +133,6 @@ Open Questions
   needed for control or video (both have dedicated radio links), but could be
   useful for software updates, monitoring, or a secondary data channel.
 - OPERATOR UX: What does the control station look like? What gamepad?
-- EMOJI PANELS: What are they? HUB75? HDMI screens? Where are they mounted?
 - NOMAD AVAILABILITY: RadioMaster Nomad Dual is out of stock at some retailers.
   Fallback: BetaFPV Micro TX V2 900MHz ($60, 2W, SX1262) with GEPRC PA500 RX
   ($26, 500mW telemetry) -- single-band 900MHz only but still excellent range.
