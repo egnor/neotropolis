@@ -7,8 +7,8 @@ import trashbot
 
 def main() -> None:
     emoji_list_ref = importlib.resources.files(trashbot) / "emoji_list.csv"
-    with emoji_list_ref.open("r") as file:
-        emoji_list = list(csv.DictReader(file))
+    with emoji_list_ref.open("r") as emoji_list_file:
+        emoji_list = list(csv.DictReader(emoji_list_file))
 
     avail_ids = set(range(1, 1024))
     for row in emoji_list:
