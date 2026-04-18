@@ -1,6 +1,6 @@
 rf_code,codepoints,name,group,subgroup,order,joypixels_file,status,reason
 ,1F600,grinning face,Smileys & Emotion,face-smiling,0,1f600.png,candidate,
-,1F603,grinning fa,1F63E,pouting cat,Smileys & Emotion,cat-face,126,1f63e.png,excluded,appearance_variant
+,1F603,grinning face with big eyes,Smileys & Emotion,face-smiling,1,1f603.png,excluded,appearance_variant
 ,1F604,grinning face with smiling eyes,Smileys & Emotion,face-smiling,2,1f604.png,candidate,
 ,1F601,beaming face with smiling eyes,Smileys & Emotion,face-smiling,3,1f601.png,candidate,
 ,1F606,grinning squinting face,Smileys & Emotion,face-smiling,4,1f606.png,candidate,
@@ -17,9 +17,9 @@ rf_code,codepoints,name,group,subgroup,order,joypixels_file,status,reason
 ,1F60D,smiling face with heart-eyes,Smileys & Emotion,face-affection,15,1f60d.png,candidate,
 ,1F929,star-struck,Smileys & Emotion,face-affection,16,1f929.png,candidate,
 ,1F618,face blowing a kiss,Smileys & Emotion,face-affection,17,1f618.png,candidate,
-,1F617,1F63E,pouting cat,Smileys & Emotion,cat-face,126,1f63e.png,excluded,appearance_variant
-,263A FE0,1F63E,pouting cat,Smileys & Emotion,cat-face,126,1f63e.png,excluded,appearance_variant
-,1F61A,kissing face wit,1F63E,pouting cat,Smileys & Emotion,cat-face,126,1f63e.png,excluded,appearance_variant
+,1F617,kissing face,Smileys & Emotion,face-affection,18,1f617.png,excluded,appearance_variant
+,263A FE0F,smiling face,Smileys & Emotion,face-affection,19,263a.png,excluded,appearance_variant
+,1F61A,kissing face with closed eyes,Smileys & Emotion,face-affection,19,1f61a.png,excluded,appearance_variant
 ,1F619,kissing face with smiling eyes,Smileys & Emotion,face-affection,21,1f619.png,excluded,appearance_variant
 ,1F972,smiling face with tear,Smileys & Emotion,face-affection,22,1f972.png,candidate,
 ,1F60B,face savoring food,Smileys & Emotion,face-tongue,23,1f60b.png,candidate,
