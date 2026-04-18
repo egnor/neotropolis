@@ -37,14 +37,15 @@ HTML = """
   .cell { position: relative; padding: 4px; border: 1px solid transparent;
           border-radius: 4px; text-align: center; font-size: 0.65rem;
           line-height: 1.1; word-break: break-word; }
-  .cell img { width: 48px; height: 48px; display: block; margin: 0 auto 2px;
+  .cell img { width: 64px; height: 64px; display: block; margin: 0 auto 2px;
               image-rendering: pixelated; }
   .cell.candidate { background: #e8f5e9; border-color: #a5d6a7; }
   .cell.included  { background: #bbdefb; border-color: #64b5f6; }
   .cell.excluded  { background: #f5f5f5; border-color: #e0e0e0; opacity: 0.55; }
-  .cell .reason { color: #b71c1c; font-style: italic; }
-  .cell .name { color: #333; }
+  .cell .rfcode { color: #666; font-weight: bold; }
+  .cell .name { color: #000; }
   .cell .cp { color: #999; font-family: monospace; font-size: 0.6rem; }
+  .cell .reason { color: #b71c1c; font-style: italic; }
 </style>
 </head>
 <body>
@@ -110,10 +111,11 @@ function render(rows) {
     cell.className = `cell ${r.status}`;
     cell.title = `${r.name}\n${r.codepoints}\nstatus: ${r.status}${r.reason ? " (" + r.reason + ")" : ""}`;
     let html = "";
+    html += `<div class="rfcode">${r.rf_code ? `RF ${r.rf_code}` : "-"}</div>`;
     if (r.joypixels_file) {
       html += `<img src="${JOYPIXELS_PREFIX}${r.joypixels_file}" loading="lazy" alt="${r.name}">`;
     } else {
-      html += `<div style="height:48px;display:flex;align-items:center;justify-content:center;color:#999">?</div>`;
+      html += `<div style="height:64px;display:flex;align-items:center;justify-content:center;color:#999">?</div>`;
     }
     html += `<div class="name">${r.name}</div>`;
     if (showMeta) {
