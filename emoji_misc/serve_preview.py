@@ -167,7 +167,7 @@ def main() -> None:
                 self.wfile.write(emoji_list_utf8)
 
             elif parts.path.startswith(JOYPIXELS_PREFIX):
-                img = joypixels_file.read(parts.path[len(JOYPIXELS_PREFIX) :])
+                img = joypixels_zip.read(parts.path[len(JOYPIXELS_PREFIX) :])
                 self.send_response(http.HTTPStatus.OK)
                 self.send_header("Content-Type", "image/png")
                 self.send_header("Content-Length", str(len(img)))
@@ -183,8 +183,8 @@ def main() -> None:
         emoji_list = list(csv.DictReader(list_csv))
 
     joypixels_ref = trashbot_files / "joypixels-png-unicode-32.zip"
-    joypixels_file = pyzipper.AESZipFile(joypixels_ref.open("rb"))
-    joypixels_file.setpassword(b"joypixels")
+    joypixels_zip = pyzipper.AESZipFile(joypixels_ref.open("rb"))
+    joypixels_zip.setpassword(b"joypixels")
 
     html_utf8 = HTML.encode("utf-8")
     emoji_list_utf8 = json.dumps(emoji_list).encode("utf-8")
