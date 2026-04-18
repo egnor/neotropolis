@@ -1,3 +1,26 @@
+#!/usr/bin/env python3
+"""Local server for preview.html.
+
+Serves emoji/ at the root and maps /joypixels/<file> to the JoyPixels asset
+archive, so the preview can reference both without symlinks or copies.
+
+Usage: python emoji/serve.py [port]
+"""
+
+import csv
+import http
+import http.server
+import importlib.resources
+import json
+import pyzipper
+import trashbot
+import urllib
+
+HTML_PATH = "/"
+EMOJI_JSON_PATH = "/emoji_list.json"
+JOYPIXELS_PREFIX = "/joypixels/"
+
+HTML = """
 <!doctype html>
 <html lang="en">
 <head>
@@ -16,7 +39,8 @@
   .cell { position: relative; padding: 4px; border: 1px solid transparent;
           border-radius: 4px; text-align: center; font-size: 0.65rem;
           line-height: 1.1; word-break: break-word; }
-  .cell img { width: 48px; height: 48px; display: block; margin: 0 auto 2px; }
+  .cell img { width: 48px; height: 48px; display: block; margin: 0 auto 2px;
+              image-rendering: pixelated; }
   .cell.candidate { background: #e8f5e9; border-color: #a5d6a7; }
   .cell.included  { background: #bbdefb; border-color: #64b5f6; }
   .cell.excluded  { background: #f5f5f5; border-color: #e0e0e0; opacity: 0.55; }
@@ -48,19 +72,7 @@
 <main id="out">loading…</main>
 
 <script>
-const JOY_DIR = "/joypixels/";
-
-async function loadTsv() {
-  const text = await fetch("emoji_curation.tsv").then(r => r.text());
-  const lines = text.trim().split("\n");
-  const header = lines.shift().split("\t");
-  return lines.map(line => {
-    const cells = line.split("\t");
-    const row = {};
-    header.forEach((h, i) => row[h] = cells[i] ?? "");
-    return row;
-  });
-}
+const JOYPIXELS_PREFIX = "/joypixels/";
 
 function render(rows) {
   const fStatus = document.getElementById("f-status").value;
@@ -101,7 +113,7 @@ function render(rows) {
     cell.title = `${r.name}\n${r.codepoints}\nstatus: ${r.status}${r.reason ? " (" + r.reason + ")" : ""}`;
     let html = "";
     if (r.joypixels_file) {
-      html += `<img src="${JOY_DIR}${r.joypixels_file}" loading="lazy" alt="${r.name}">`;
+      html += `<img src="${JOYPIXELS_PREFIX}${r.joypixels_file}" loading="lazy" alt="${r.name}">`;
     } else {
       html += `<div style="height:48px;display:flex;align-items:center;justify-content:center;color:#999">?</div>`;
     }
@@ -116,7 +128,7 @@ function render(rows) {
 }
 
 (async () => {
-  const rows = await loadTsv();
+  const rows = await (await fetch("emoji_list.json")).json();
   // Populate filter dropdowns
   const reasonSel = document.getElementById("f-reason");
   const groupSel = document.getElementById("f-group");
@@ -133,3 +145,56 @@ function render(rows) {
 </script>
 </body>
 </html>
+"""
+
+
+def main() -> None:
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            parts = urllib.parse.urlsplit(self.path)
+            if parts.path == HTML_PATH:
+                self.send_response(http.HTTPStatus.OK)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(html_utf8)))
+                self.end_headers()
+                self.wfile.write(html_utf8)
+
+            elif parts.path == EMOJI_JSON_PATH:
+                self.send_response(http.HTTPStatus.OK)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(emoji_list_utf8)))
+                self.end_headers()
+                self.wfile.write(emoji_list_utf8)
+
+            elif parts.path.startswith(JOYPIXELS_PREFIX):
+                joy_bytes = zip_file.read(parts.path[len(JOYPIXELS_PREFIX) :])
+                self.send_response(http.HTTPStatus.OK)
+                self.send_header("Content-Type", "image/png")
+                self.send_header("Content-Length", str(len(joy_bytes)))
+                self.end_headers()
+                self.wfile.write(joy_bytes)
+
+            else:
+                self.send_response(http.HTTPStatus.NOT_FOUND)
+                self.end_headers()
+
+    trashbot_files = importlib.resources.files(trashbot)
+    with (trashbot_files / "emoji_list.csv").open("r") as list_csv:
+        emoji_list = list(csv.DictReader(list_csv))
+
+    zip_raw = (trashbot_files / "joypixels-png-unicode-32.zip").open("rb")
+    zip_file = pyzipper.AESZipFile(zip_raw)
+    zip_file.setpassword(b"joypixels")
+
+    html_utf8 = HTML.encode("utf-8")
+    emoji_list_utf8 = json.dumps(emoji_list).encode("utf-8")
+
+    with http.server.ThreadingHTTPServer(("127.0.0.1", 8000), Handler) as httpd:
+        print(f"serving at http://127.0.0.1:8000{HTML_PATH}")
+        print(f"  list at {EMOJI_JSON_PATH}")
+        print(f"  images at {JOYPIXELS_PREFIX}<file>.png")
+        httpd.serve_forever()
+
+
+if __name__ == "__main__":
+    main()

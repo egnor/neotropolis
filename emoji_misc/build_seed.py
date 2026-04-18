@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Build the curation TSV from emoji-test.txt + JoyPixels asset directory.
 
 Reads:
@@ -5,7 +6,7 @@ Reads:
   ../../joypixels-10.0-emoji/png/unicode/128/*.png
 
 Writes:
-  emoji_curation.tsv      (one row per fully-qualified emoji)
+  emoji_list.tsv      (one row per fully-qualified emoji)
 
 Columns:
   rf_code                 — assigned later, blank for now
@@ -18,12 +19,15 @@ Columns:
   reason                  — short tag explaining auto-exclusion (or blank)
 """
 
-from pathlib import Path
+import csv
+import pathlib
 
-HERE = Path(__file__).parent
+HERE = pathlib.Path(__file__).parent
 TEST_FILE = HERE / "emoji-test.txt"
-JOYPIXELS_DIR = HERE.parent.parent / "joypixels-10.0-emoji" / "png" / "unicode" / "128"
-OUT_TSV = HERE / "emoji_curation.tsv"
+JOYPIXELS_DIR = (
+    HERE.parent.parent / "joypixels-10.0-emoji" / "png" / "unicode" / "128"
+)
+OUT_CSV = HERE / "emoji_list.csv"
 
 SKIN_TONES = {0x1F3FB, 0x1F3FC, 0x1F3FD, 0x1F3FE, 0x1F3FF}
 HAIR_COMPONENTS = {0x1F9B0, 0x1F9B1, 0x1F9B2, 0x1F9B3}
@@ -102,50 +106,40 @@ def main() -> None:
     rows = parse()
 
     candidates = excluded = missing = 0
-    out_lines = [
-        "\t".join(
-            [
-                "rf_code",
-                "codepoints",
-                "name",
-                "group",
-                "subgroup",
-                "order",
-                "joypixels_file",
-                "status",
-                "reason",
-            ]
-        )
-    ]
-    for row in rows:
-        key = joypixels_key(row["_codepoints_int"])
-        joy_file = f"{key}.png" if key in joypixels_files else ""
-        status, reason = classify(row["_codepoints_int"], row["group"])
-        if not joy_file and status == "candidate":
-            status, reason = "excluded", "no_joypixels"
-            missing += 1
-        if status == "candidate":
-            candidates += 1
-        else:
-            excluded += 1
-        out_lines.append(
-            "\t".join(
-                [
-                    "",  # rf_code
-                    row["codepoints"],
-                    row["name"],
-                    row["group"],
-                    row["subgroup"],
-                    str(row["order"]),
-                    joy_file,
-                    status,
-                    reason,
-                ]
-            )
-        )
+    with open(OUT_CSV, "w", encoding="utf-8", newline="") as out_file:
+        fields = [
+            "rf_code",
+            "codepoints",
+            "name",
+            "group",
+            "subgroup",
+            "order",
+            "joypixels_file",
+            "status",
+            "reason",
+        ]
 
-    OUT_TSV.write_text("\n".join(out_lines) + "\n", encoding="utf-8")
-    print(f"wrote {OUT_TSV} ({len(rows)} rows)")
+        out_writer = csv.DictWriter(out_file, fieldnames=fields)
+
+        for row in rows:
+            codepoints = row.pop("_codepoints_int")
+            key = joypixels_key(codepoints)
+            joy_file = f"{key}.png" if key in joypixels_files else ""
+            status, reason = classify(codepoints, row["group"])
+            if not joy_file and status == "candidate":
+                status, reason = "excluded", "no_joypixels"
+                missing += 1
+            if status == "candidate":
+                candidates += 1
+            else:
+                excluded += 1
+            row["rf_code"] = ""
+            row["joypixels_file"] = joy_file
+            row["status"] = status
+            row["reason"] = reason
+            out_writer.writerow(row)
+
+    print(f"wrote {OUT_CSV} ({len(rows)} rows)")
     print(f"  candidates: {candidates}")
     print(f"  excluded:   {excluded}  (of which no_joypixels: {missing})")
 

@@ -12,6 +12,7 @@ dependencies = [
   "pyusb>=1.3.1",
   "ok-serial[cli]>=0.3.1",
   "evdev>=1.7",
+  "pyzipper>=0.3.6",
 ]
 description = "Neotropolis project code"
 name = "egnor-neotropolis"
