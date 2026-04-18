@@ -5,11 +5,11 @@
 
 import asyncclick as click
 import dataclasses
+import json
 import logging
 import ok_logging_setup
 import os
 import pygame
-import re
 import sys
 import threading
 import trashbot.emoji_list
@@ -19,13 +19,12 @@ import trashbot.emoji_list
 class DisplayContext:
     rf_emoji: dict[int, trashbot.emoji_list.Emoji]
     temp_square: pygame.Surface
+    request_line: str
 
-
-LINE_FORMAT = re.compile(r"E(?P<rfcode>\d+)")
 
 STDIN_LINE_EVENT = pygame.event.custom_type()
 
-_log: logging.Logger
+REDRAW_EVENT = pygame.event.custom_type()
 
 
 @click.command()
@@ -35,12 +34,14 @@ _log: logging.Logger
 @click.option("--screen", type=int, default=0)
 @click.option("--size", type=int, nargs=2, default=(0, 0))
 def main(debug, force_console, fullscreen, screen, size):
-    global _log
-    ok_logging_setup.install({"OK_LOGGING_LEVEL": "debug" if debug else "info"})
+    logging_options = {
+        "OK_LOGGING_LEVEL": "debug" if debug else "info",
+        "OK_LOGGING_PREFIX": f"eye{screen}> ",
+    }
+    ok_logging_setup.install(logging_options)
     ok_logging_setup.skip_traceback_for(pygame.error)
-    _log = logging.getLogger(f"trashbot.display_eye_worker[{screen}]")
 
-    _log.info("👁️ Opening eye display...")
+    logging.info("👁️ Opening eye display...")
     if force_console:
         os.environ["SDL_VIDEODRIVER"] = "wayland"
         os.environ["WAYLAND_DISPLAY"] = "wayland-0"
@@ -56,64 +57,72 @@ def main(debug, force_console, fullscreen, screen, size):
 
     surf = pygame.display.get_surface()
     (width, height), bpp = surf.get_size(), surf.get_bitsize()
-    _log.info(f"🖥️ Opened screen {screen} at {width}x{height} {bpp}bpp")
+    logging.info(f"🖥️ Opened screen {screen} at {width}x{height} {bpp}bpp")
 
     min_dim = min(width, height)
     context = DisplayContext(
         rf_emoji={e.rf_code: e for e in trashbot.emoji_list.load(screen=surf)},
         temp_square=pygame.Surface((min_dim, min_dim), flags=pygame.SRCALPHA),
+        request_line="",
     )
 
     threading.Thread(target=stdin_reader_thread, daemon=True).start()
-
+    redraw_pending = False
     while True:
         ev = pygame.event.wait()
         if ev.type == pygame.QUIT:
-            _log.info("❌ QUIT event received, stopping")
+            logging.info("❌ QUIT event received, stopping")
             break
 
         elif ev.type == STDIN_LINE_EVENT:
             if ev.text is None:
-                _log.info("❌ EOF from stdin, stopping")
+                logging.info("❌ EOF from stdin, stopping")
                 break
+            elif ev.text != context.request_line:  # de-dup and debounce redraw
+                context.request_line = ev.text
+                if not redraw_pending:
+                    pygame.time.set_timer(REDRAW_EVENT, 20, loops=1)
+                    redraw_pending = True
 
-            handle_stdin_line(context, ev.text)
+        elif ev.type == REDRAW_EVENT:
+            redraw_display(context)
+            redraw_pending = False
 
 
 def stdin_reader_thread():
-    _log.debug("stdin reader thread starting...")
+    logging.debug("stdin reader thread starting...")
     for line in sys.stdin:
-        _log.debug("stdin: %r", line)
+        logging.debug("stdin: %r", line)
         pygame.event.post(pygame.event.Event(STDIN_LINE_EVENT, text=line))
 
-    _log.debug("stdin reader reporting EOF")
+    logging.debug("stdin reader reporting EOF")
     pygame.event.post(pygame.event.Event(STDIN_LINE_EVENT, text=None))  # EOF
 
 
-def handle_stdin_line(context: DisplayContext, line: str):
-    line = line.strip()
-    parsed = LINE_FORMAT.fullmatch(line)
-    if not parsed:
-        _log.error('Bad stdin line: "%s"', line)
-        return
+def redraw_display(context: DisplayContext):
+    request = json.loads(context.request_line)
+    if not isinstance(request, dict):
+        raise TypeError("Bad request line type: %s", type(request))
 
-    emo: trashbot.emoji_list.Emoji | None = None
-    if rfcode_text := parsed.group("rfcode"):
-        if not (emo := context.rf_emoji.get(int(rfcode_text))):
-            _log.error("Bad emoji rfcode: %s", rfcode_text)
-            return
+    if not (screen := pygame.display.get_surface()):
+        raise ValueError("No pygame display surface")
 
-    if screen := pygame.display.get_surface():
-        if emo and emo.image:
-            scr_w, scr_h = screen.get_size()
-            tsq = context.temp_square
-            tsq_w, tsq_h = tsq.get_size()
-            blit_pos = ((scr_w - tsq_w) // 2, (scr_h - tsq_h) // 2)
-            pygame.transform.scale(emo.image, (tsq_w, tsq_h), dest_surface=tsq)
-            screen.fill((0, 0, 0))
-            screen.blit(tsq, blit_pos)
+    screen.fill((0, 0, 0))
+    scr_w, scr_h = screen.get_size()
 
-        pygame.display.flip()
+    rf_code = int(request.pop("rf_code", 0)) or None
+    emoji = rf_code and context.rf_emoji[rf_code]
+    if emoji and emoji.image:
+        tsq = context.temp_square
+        tsq_w, tsq_h = tsq.get_size()
+        blit_pos = ((scr_w - tsq_w) // 2, (scr_h - tsq_h) // 2)
+        pygame.transform.scale(emoji.image, (tsq_w, tsq_h), dest_surface=tsq)
+        screen.blit(tsq, blit_pos)
+
+    pygame.display.flip()
+
+    if request:
+        raise ValueError("Leftover request fields: %s", request)
 
 
 if __name__ == "__main__":

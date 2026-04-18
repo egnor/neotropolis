@@ -418,7 +418,7 @@ requires-dist = [
     { name = "fastcrc", specifier = ">=0.3" },
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "odrive", specifier = ">=0.6.11.dev1" },
-    { name = "ok-logging-setup", specifier = ">=0.12" },
+    { name = "ok-logging-setup", specifier = ">=0.13" },
     { name = "ok-serial", extras = ["cli"], specifier = ">=0.3.1" },
     { name = "pygame-ce", specifier = ">=2.5.7" },
     { name = "pysdl3", specifier = ">=0.9.11b0" },
@@ -1147,11 +1147,11 @@ wheels = [
 
 [[package]]
 name = "ok-logging-setup"
-version = "0.12"
+version = "0.13"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/81/a2/780771d7d24a99b7ea384d87f6076579fe34271f7f021019b1cfe33df986/ok_logging_setup-0.12.tar.gz", hash = "sha256:3cd98e7476bafcd659f0bc8f59916326c25f731b8b88d9e352190d83e66d2402", size = 7287, upload-time = "2025-12-17T06:31:15.454Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b5/84/ab7ab0bdf36bd2af691ad5c482d1fadc4eb6ce762a37599a9ced9808f8df/ok_logging_setup-0.13.tar.gz", hash = "sha256:1e59437f1e903dace668ede7f3eea8da352cf2815bc334e670bbcf7044f31f6a", size = 7387, upload-time = "2026-04-18T16:57:16.221Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1a/40/920572dc260b1169862aab6adbf09b6e783e03c5f5ab72cae1f7fc48f292/ok_logging_setup-0.12-py3-none-any.whl", hash = "sha256:0753f3ab3aa7ca3deedaffd3aa01620503cbe330225656073b2dee8b9ac0b195", size = 9429, upload-time = "2025-12-17T06:31:14.258Z" },
+    { url = "https://files.pythonhosted.org/packages/ac/16/887493d4751e331c8197f7dc2032dbfed7e44ad6476741c17b8180dd4437/ok_logging_setup-0.13-py3-none-any.whl", hash = "sha256:7c23d2e99f34bcdad372606a45be253ba3340938b0da4b0cf5f2e78ee7a475f8", size = 9511, upload-time = "2026-04-18T16:57:15.062Z" },
 ]
 
 [[package]]
