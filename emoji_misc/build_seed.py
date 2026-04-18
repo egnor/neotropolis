@@ -120,6 +120,7 @@ def main() -> None:
         ]
 
         out_writer = csv.DictWriter(out_file, fieldnames=fields)
+        out_writer.writeheader()
 
         for row in rows:
             codepoints = row.pop("_codepoints_int")

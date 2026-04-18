@@ -24,8 +24,8 @@ class RadioDriver:
         self.serial = serial
         self.buffer = bytearray()
         self.recent: dict[str, construct.Container] = {}
-        self.raise_dsr_mtime = 0
-        self.raise_dtr_mtime = 0
+        self.raise_dsr_mtime = 0.0
+        self.raise_dtr_mtime = 0.0
 
     def poll_frame(self) -> construct.Container | None:
         self.buffer.extend(self.serial.read_sync(timeout=0))

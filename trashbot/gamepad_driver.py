@@ -2,6 +2,7 @@
 
 import evdev
 import logging
+from typing import cast
 
 _log = logging.getLogger(__name__)
 
@@ -78,8 +79,11 @@ def connect() -> GamepadDriver:
             _log.warn(f"Error opening input dev {dev_path}")
             continue
 
-        abs_caps = caps.get(evdev.ecodes.EV_ABS, [])
-        axes = set(c[0] for c in abs_caps if isinstance(c, tuple))
+        abs_caps = cast(
+            list[tuple[int, evdev.AbsInfo]],
+            caps.get(evdev.ecodes.EV_ABS, []),
+        )
+        axes = {c[0] for c in abs_caps}
         if all(c in axes for c in (evdev.ecodes.ABS_X, evdev.ecodes.ABS_Y)):
             _log.info(f"🎮 {dev.name} ({dev.path})")
             return GamepadDriver(dev=dev, caps=caps)

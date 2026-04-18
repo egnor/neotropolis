@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """Local server for preview.html.
 
-Serves emoji/ at the root and maps /joypixels/<file> to the JoyPixels asset
-archive, so the preview can reference both without symlinks or copies.
-
-Usage: python emoji/serve.py [port]
+Serves HTML at the root, the emoji list at /emoji_list.json, and the JoyPixels
+assets at /joypixels/<code>.png to assist emoji curation.
 """
 
 import csv
