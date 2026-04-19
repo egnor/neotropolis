@@ -58,6 +58,7 @@ def main(bot, base):
 
     kanshi_config = None
     if bot:
+        # Place displays in a consistent position
         # Note, both displays are forced on with "...@30e" kernel modes above
         serials = [
             "JZI Beetronics bee0097-73092",
