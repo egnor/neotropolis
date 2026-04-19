@@ -21,8 +21,11 @@ Onboard power, propulsion, and control
 - 24V, 10AH lithium battery
 - 2x [ODrive S1](https://docs.odriverobotics.com/v/latest/hardware/s1-datasheet.html)
   motor controllers
-- [24V-to-12V 20A DC-DC](https://www.amazon.com/dp/B0CS2KJSKS) for video Tx
-- [24V/12V-to-5V 10A DC-DC](https://www.amazon.com/dp/B0FD6M8D7K) for Pi/ELRS Rx
+- [20-60V→12V 20A DC-DC](https://www.amazon.com/dp/B0CS2KJSKS) feeds a
+  shared 12V rail (video Tx, microphone, camera, and Pi top-hat subsystem)
+- [8-32V→5V 10A DC-DC](https://www.amazon.com/dp/B0GHK3B5YS) inside the Pi
+  enclosure steps 12V down to 5V locally for the Pi and ELRS RX
+- See [POWER.md](POWER.md) for power delivery details and history
 - [Raspberry Pi 5](https://www.raspberrypi.com/products/raspberry-pi-5/)
 - [ODrive USB-CAN adapter](https://shop.odriverobotics.com/products/usb-can-adapter)
 
