@@ -392,6 +392,7 @@ dependencies = [
     { name = "odrive" },
     { name = "ok-logging-setup" },
     { name = "ok-serial", extra = ["cli"] },
+    { name = "ok-subprocess-defaults" },
     { name = "pygame-ce" },
     { name = "pysdl3" },
     { name = "pyserial" },
@@ -420,6 +421,7 @@ requires-dist = [
     { name = "odrive", specifier = ">=0.6.11.dev1" },
     { name = "ok-logging-setup", specifier = ">=0.13" },
     { name = "ok-serial", extras = ["cli"], specifier = ">=0.3.1" },
+    { name = "ok-subprocess-defaults", specifier = ">=0.1" },
     { name = "pygame-ce", specifier = ">=2.5.7" },
     { name = "pysdl3", specifier = ">=0.9.11b0" },
     { name = "pyserial", specifier = ">=3.5" },
@@ -1174,6 +1176,15 @@ cli = [
     { name = "blessed" },
     { name = "click" },
     { name = "ok-logging-setup" },
+]
+
+[[package]]
+name = "ok-subprocess-defaults"
+version = "0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ad/e7/ca0a851514bc011e81964341c3a17dbadf54fe58f616145ecc52ae37b12f/ok_subprocess_defaults-0.1.tar.gz", hash = "sha256:0dd935b66d483be430a14032c76baac140f825c7968a18d9fa3a62ff33b427f1", size = 10982, upload-time = "2025-05-05T03:18:33.043Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2d/f4/26538552dd384409547b1f6a17b3aec97a0ffff1bccbf8eeeccffbd3c508/ok_subprocess_defaults-0.1-py3-none-any.whl", hash = "sha256:bd5a622f2f5aa040e90a985508c242dc0b28fa8cef29b4e1bce52c743e87b3ba", size = 4683, upload-time = "2025-05-05T03:18:31.905Z" },
 ]
 
 [[package]]
