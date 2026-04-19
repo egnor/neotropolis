@@ -113,13 +113,17 @@ class MotorDriver:
         if any(s.split()[:1] == [can_iface] for s in rcvlist_lines):
             raise MotorError(f"{can_iface} interface in use")
 
-        devs = await odrive.find_async(
+        find_future = odrive.find_async(
             interfaces=[f"can:{can_iface}"],
             count=2,
             return_type=odrive.runtime_device.RuntimeDevice,
         )
+        try:
+            devs = await asyncio.wait_for(find_future, 5.0)
+        except _odrive_exc:
+            raise MotorError("Error finding motor devices")
         if len(devs) != 2:
-            raise ValueError(f"Got {len(self.motors)} devices, expected 2")
+            raise MotorError(f"Got {len(self.motors)} devices, expected 2")
 
         devs = sorted(devs, key=lambda d: d.effective_node_id)
         node_ids = [d.effective_node_id for d in devs]
@@ -183,7 +187,7 @@ class MotorDriver:
     async def refresh(self):
         try:
             refresh_tasks = [self._refresh_motor(mo) for mo in self.motors]
-            await asyncio.wait_for(asyncio.gather(*refresh_tasks), 0.05)
+            await asyncio.wait_for(asyncio.gather(*refresh_tasks), 0.1)
         except _odrive_exc:
             raise MotorError("Error talking to motor")
 

@@ -50,7 +50,6 @@ async def main(debug):
 
         if mtime >= motor_mtime:
             motor_mtime += 0.05
-            all_active = all(mo.is_active for mo in mdriver.motors)
             vels = [0, 0]
             if not (channels := rdriver.recent.get("RCChannelsPacked")):
                 command_status = "!RC"
@@ -60,13 +59,13 @@ async def main(debug):
                 command_status = "!Arm"
             elif any(abs(v) > 1.0 for v in channels.scaled_values[:5]):
                 command_status = "Inv"
-            elif not all_active and channels.scaled_values[2] > 0.05:
+            elif command_status != "Ok" and channels.scaled_values[2] > 0.05:
                 command_status = "Thr+"
-            elif not all_active and channels.scaled_values[2] < -0.05:
+            elif command_status != "Ok" and channels.scaled_values[2] < -0.05:
                 command_status = "Thr-"
-            elif not all_active and channels.scaled_values[0] > 0.05:
+            elif command_status != "Ok" and channels.scaled_values[0] > 0.05:
                 command_status = "Rot+"
-            elif not all_active and channels.scaled_values[0] < -0.05:
+            elif command_status != "Ok" and channels.scaled_values[0] < -0.05:
                 command_status = "Rot-"
             elif unready_mtime > mtime - 2.0:
                 command_status = "Wait"
