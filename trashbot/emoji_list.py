@@ -30,7 +30,7 @@ def load(screen: pygame.Surface | None = None) -> list[Emoji]:
     with emoji_list_ref.open("r") as emoji_list_file:
         emoji_list_rows = list(csv.DictReader(emoji_list_file))
 
-    joypixels_ref = trashbot_files / "joypixels-png-unicode-32.zip"
+    joypixels_ref = trashbot_files / "media/joypixels-png-unicode-32.zip"
     with joypixels_ref.open("rb") as joypixels_file:
         joypixels_zip = pyzipper.AESZipFile(joypixels_file)
         joypixels_zip.setpassword(b"joypixels")

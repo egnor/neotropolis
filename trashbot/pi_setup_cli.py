@@ -11,6 +11,9 @@ import re
 import textwrap
 
 
+REPO_PATH = pathlib.Path(__file__).parent.parent
+
+
 @click.command()
 @click.option("--bot", is_flag=True)
 @click.option("--base", is_flag=True)
@@ -32,7 +35,7 @@ def main(bot, base):
     #
 
     boot_line_path = pathlib.Path("/boot/firmware/cmdline.txt")
-    logging.info("⚙️ Checking boot args: %s", boot_line_path)
+    logging.info("🥾 Checking boot args: %s", boot_line_path)
     boot_line = boot_line_path.read_text().strip()
     arg_rx = re.compile(r'([\w.-]+(?:=("[^"]*")+|=[^"\s]*)?(?![^\s]))\s*|(.)')
     boot_args = [m[1] for m in re.finditer(arg_rx, boot_line)]
@@ -76,6 +79,27 @@ def main(bot, base):
         kanshi_config_path.parent.mkdir(parents=True, exist_ok=True)
         logging.info("🖥️ Setting screen layout: %s", kanshi_config_path)
         kanshi_config_path.write_text(kanshi_config)
+
+    #
+    # systemd services
+    #
+
+    service_name = None
+    if bot:
+        service_name = "trashbot.service"
+
+    if service_name:
+        logging.info("⚙️ Checking systemd unit: %s", service_name)
+        source_unit_path = REPO_PATH / service_name
+        system_services_path = pathlib.Path("/etc/systemd/system")
+        installed_unit_path = system_services_path / service_name
+        resolved_unit_path = installed_unit_path.resolve()
+        if resolved_unit_path != source_unit_path:
+            sub.run("sudo", "systemctl", "enable", source_unit_path)
+
+        status_lines = sub.stdout_lines("systemctl", "show", service_name)
+        if "ActiveState=active" not in status_lines:
+            sub.run("sudo", "systemctl", "restart", service_name)
 
     #
     # All done
