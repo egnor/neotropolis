@@ -294,8 +294,8 @@ def channel_from_signed_fraction(frac: float) -> int:
     return min(_CH_MAX, max(_CH_MIN, round((frac - _CH_OFFSET) / _CH_SCALE)))
 
 
-# On the air, ELRS recodes the value to use fewer bits and cover only the
-# valid range (0=-100%, max=100%); only some CRSF values transmit exactly.
+# On the air, ELRS recodes the value to use fewer bits covering only the
+# valid range (0=-100%, max=100%), so only some CRSF values transmit exactly.
 
 
 def rf_code_from_channel(raw: int, *, bits: int) -> int:

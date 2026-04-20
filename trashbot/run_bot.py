@@ -8,7 +8,7 @@ import logging
 import time
 
 import trashbot.crsf_protocol
-import trashbot.eye_display_driver
+import trashbot.bot_display_driver
 import trashbot.motor_driver
 import trashbot.radio_driver
 
@@ -35,8 +35,8 @@ async def main(debug):
     logging.info("⚙️ Connecting to motors...")
     mdriver = await trashbot.motor_driver.connect()
 
-    logging.info("👀 Connecting to eye displays...")
-    ddriver = trashbot.eye_display_driver.EyeDisplayDriver()
+    logging.info("👀 Connecting to displays...")
+    ddriver = trashbot.bot_display_driver.BotDisplayDriver()
 
     start_mtime = time.monotonic()
     ready_mtime = 0
@@ -57,7 +57,7 @@ async def main(debug):
 
         if mtime >= display_mtime:
             display_mtime += 0.05
-            update_eye_displays(
+            update_displays(
                 mtime=mtime,
                 command_status=command_status,
                 ddriver=ddriver,
@@ -107,21 +107,21 @@ async def command_motor(
     mdriver: trashbot.motor_driver.MotorDriver,
     rdriver: trashbot.radio_driver.RadioDriver,
 ):
-    signed_fraction = trashbot.crsf_protocol.signed_fraction_from_channel
+    get_frac = trashbot.crsf_protocol.signed_fraction_from_channel
 
     if not (rc := rdriver.recent.get("RCChannelsPacked")):
         command_status = "Off"
     elif rc.mtime < mtime - 0.1:
         command_status = "Lost"
-    elif signed_fraction(rc.channels[4]) < 0.1:
+    elif get_frac(rc.channels[4]) < 0.1:
         command_status = "!Arm"
-    elif abs(throttle := signed_fraction(rc.channels[2])) > 1.0:
+    elif abs(throttle := get_frac(rc.channels[2])) > 1.0:
         command_status = "!Thr"
     elif prev_status != "OK" and throttle > 0.05:
         command_status = "Thr+"
     elif prev_status != "OK" and throttle < -0.05:
         command_status = "Thr-"
-    elif abs(rotate := signed_fraction(rc.channels[0])) > 1.0:
+    elif abs(rotate := get_frac(rc.channels[0])) > 1.0:
         command_status = "!Rot"
     elif prev_status != "OK" and rotate > 0.05:
         command_status = "Rot+"
@@ -180,11 +180,11 @@ def send_telemetry(
     )
 
 
-def update_eye_displays(
+def update_displays(
     *,
     mtime: float,
     command_status: str,
-    ddriver: trashbot.eye_display_driver.EyeDisplayDriver,
+    ddriver: trashbot.bot_display_driver.BotDisplayDriver,
     mdriver: trashbot.motor_driver.MotorDriver,
     rdriver: trashbot.radio_driver.RadioDriver,
 ):
@@ -201,9 +201,11 @@ def update_eye_displays(
     if not (rc := rdriver.recent.get("RCChannelsPacked")):
         rf_codes = (0, 0)
     else:
-        rf_codes = (100, 100)
-
-    rc
+        get_code = trashbot.crsf_protocol.rf_code_from_channel
+        rf_codes = (
+            get_code(rc.channels[3], bits=10),
+            get_code(rc.channels[1], bits=10),
+        )
 
     caption_text = " / ".join(caption_words).upper()  # font has no good lcase
     for eye, rf_code in enumerate(rf_codes):

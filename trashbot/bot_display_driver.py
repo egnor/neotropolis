@@ -13,13 +13,13 @@ class DisplayError(Exception):
     pass
 
 
-class EyeDisplayDriver:
+class BotDisplayDriver:
     def __init__(self):
         self.eye_workers = []
 
-        _log.info("🤓 Starting eye display workers...")
+        _log.info('🤓 Starting "eye" display workers...')
         for ei in range(2):
-            worker_name = "trashbot.eye_display_worker"
+            worker_name = "trashbot.bot_display_worker"
             worker_args = [sys.executable, "-m", worker_name, f"--screen={ei}"]
             try:
                 worker = subprocess.Popen(
@@ -49,7 +49,7 @@ class EyeDisplayDriver:
             if not isinstance(ready, dict) or not ready.get("ready"):
                 raise DisplayError(f"Bad eye {ei} worker status: {ready}")
 
-        _log.info("😎 Eye display workers ready")
+        _log.info("😎 Display workers ready")
 
     def set_display(self, eye: int, request: dict):
         worker = self.eye_workers[eye]
@@ -57,7 +57,7 @@ class EyeDisplayDriver:
             worker.stdin.write(f"{json.dumps(request)}\n")
             worker.poll()
         except (OSError, subprocess.SubprocessError):
-            raise DisplayError(f"Error sending eye {eye} worker command")
+            raise DisplayError(f"Error sending display {eye} worker command")
 
         if worker.returncode is not None:
-            raise DisplayError(f"Eye {eye} worker died: {worker.returncode}")
+            raise DisplayError(f"Display {eye} died: {worker.returncode}")

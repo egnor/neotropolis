@@ -39,7 +39,7 @@ REDRAW_EVENT = pygame.event.custom_type()
 def main(debug, force_console, fullscreen, screen, size):
     logging_options = {
         "OK_LOGGING_LEVEL": "debug" if debug else "info",
-        "OK_LOGGING_PREFIX": f"eye{screen}> ",
+        "OK_LOGGING_PREFIX": f"screen{screen}> ",
     }
     ok_logging_setup.install(logging_options)
     ok_logging_setup.skip_traceback_for(pygame.error)
@@ -129,7 +129,7 @@ def redraw_display(context: DisplayContext):
     scr_w, scr_h = screen.get_size()
 
     rf_code = int(request.pop("rf_code", 0)) or None
-    emoji = rf_code and context.rfcode_emoji[rf_code]
+    emoji = rf_code and context.rfcode_emoji.get(rf_code)
     if emoji and emoji.image:
         tsq = context.temp_square
         tsq_w, tsq_h = tsq.get_size()
