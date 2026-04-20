@@ -1,4 +1,4 @@
-# Driver for ODrive left/right tread motors for Trashbot
+"""Driver for ODrive left/right tread motors for Trashbot"""
 
 import asyncio
 import dataclasses

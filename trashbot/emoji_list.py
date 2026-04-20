@@ -26,7 +26,7 @@ _log = logging.getLogger(__name__)
 def load(screen: pygame.Surface | None = None) -> list[Emoji]:
     trashbot_files = importlib.resources.files(trashbot)
     emoji_list_ref = trashbot_files / "emoji_list.csv"
-    _log.info("🤪 Loading %s", emoji_list_ref)
+    _log.info("🤪 Loading %s ...", emoji_list_ref.name)
     with emoji_list_ref.open("r") as emoji_list_file:
         emoji_list_rows = list(csv.DictReader(emoji_list_file))
 
@@ -45,7 +45,7 @@ def load(screen: pygame.Surface | None = None) -> list[Emoji]:
                 with joypixels_zip.open(image_name) as image_file:
                     surface = pygame.image.load(image_file, namehint=image_name)
                 if screen:
-                    surface = surface.convert_alpha(screen)
+                    surface = surface.convert_alpha()
             else:
                 surface = None
 

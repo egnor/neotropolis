@@ -15,7 +15,7 @@ dependencies = [
   "pygame-ce>=2.5.7",
   "pyzipper>=0.3.6",
   "pysdl3>=0.9.11b0",
-  "ok-subprocess-defaults>=0.1",
+  "ok-subprocess-defaults>=0.2",
 ]
 description = "Neotropolis project code"
 name = "egnor-neotropolis"
@@ -47,7 +47,10 @@ dev = [
 [tool.mypy]
 exclude_gitignore = true
 files = "trashbot"
-overrides = [{ module = ["odrive.*"], follow_untyped_imports = true }]
+overrides = [
+  { module = "odrive.*", follow_untyped_imports = true },
+  { module = "pyzipper.*", follow_untyped_imports = true },
+]
 
 [tool.pytest]
 asyncio_mode = "auto"
