@@ -14,7 +14,6 @@ Columns:
   name                    — UTS #51 name
   group, subgroup         — UTS #51 taxonomy
   order                   — index within emoji-test.txt (canonical sort key)
-  joypixels_file          — basename of JoyPixels PNG, or empty if not present
   status                  — "candidate", "excluded", or "included"
   reason                  — short tag explaining auto-exclusion (or blank)
 """
@@ -114,7 +113,6 @@ def main() -> None:
             "group",
             "subgroup",
             "order",
-            "joypixels_file",
             "status",
             "reason",
         ]
@@ -125,9 +123,9 @@ def main() -> None:
         for row in rows:
             codepoints = row.pop("_codepoints_int")
             key = joypixels_key(codepoints)
-            joy_file = f"{key}.png" if key in joypixels_files else ""
+            has_joy = key in joypixels_files
             status, reason = classify(codepoints, row["group"])
-            if not joy_file and status == "candidate":
+            if not has_joy and status == "candidate":
                 status, reason = "excluded", "no_joypixels"
                 missing += 1
             if status == "candidate":
@@ -135,7 +133,6 @@ def main() -> None:
             else:
                 excluded += 1
             row["rf_code"] = ""
-            row["joypixels_file"] = joy_file
             row["status"] = status
             row["reason"] = reason
             out_writer.writerow(row)

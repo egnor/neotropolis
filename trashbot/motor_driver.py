@@ -14,7 +14,7 @@ import odrive.runtime_device
 import odrive.utils
 import struct
 
-import trashbot
+import trashbot.resources
 
 _log = logging.getLogger(__name__)
 
@@ -142,7 +142,8 @@ class MotorDriver:
         except _odrive_exc:
             raise MotorError("Error getting motor configs")
 
-        gold_str = importlib.resources.read_text(trashbot, "motor_config.json")
+        resource_files = importlib.resources.files(trashbot.resources)
+        gold_str = (resource_files / "motor_config.json").read_text()
         self.gold_config = json.loads(gold_str)
         self.motors = [Motor(d, c, v) for d, c, v in zip(devs, configs, vers)]
 

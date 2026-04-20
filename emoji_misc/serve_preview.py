@@ -5,14 +5,25 @@ Serves HTML at the root, the emoji list at /emoji_list.json, and the JoyPixels
 assets at /joypixels/<code>.png to assist emoji curation.
 """
 
+import argparse
 import csv
 import http
 import http.server
 import importlib.resources
 import json
-import pyzipper
-import trashbot
+import pathlib
+import trashbot.resources
 import urllib
+import zipfile
+
+VARIATION_SELECTOR_16 = 0xFE0F
+ZWJ = 0x200D
+
+
+def joypixels_key(codepoints_str: str) -> str:
+    cps = [int(c, 16) for c in codepoints_str.split()]
+    kept = [c for c in cps if c not in (VARIATION_SELECTOR_16, ZWJ)]
+    return "-".join(f"{c:04x}" for c in kept)
 
 HTML_PATH = "/"
 EMOJI_JSON_PATH = "/emoji_list.json"
@@ -112,11 +123,7 @@ function render(rows) {
     cell.title = `${r.name}\n${r.codepoints}\nstatus: ${r.status}${r.reason ? " (" + r.reason + ")" : ""}`;
     let html = "";
     html += `<div class="rfcode">${r.rf_code ? `RF ${r.rf_code}` : "-"}</div>`;
-    if (r.joypixels_file) {
-      html += `<img src="${JOYPIXELS_PREFIX}${r.joypixels_file}" loading="lazy" alt="${r.name}">`;
-    } else {
-      html += `<div style="height:64px;display:flex;align-items:center;justify-content:center;color:#999">?</div>`;
-    }
+    html += `<img src="${JOYPIXELS_PREFIX}${r.codepoints}" loading="lazy" alt="${r.name}">`;
     html += `<div class="name">${r.name}</div>`;
     if (showMeta) {
       html += `<div class="cp">${r.codepoints}</div>`;
@@ -148,7 +155,19 @@ function render(rows) {
 """
 
 
+DEFAULT_ZIP = pathlib.Path(__file__).parent.parent.parent / "joypixels-10.0-emoji.zip"
+
+
 def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument(
+        "--joypixels-zip",
+        type=pathlib.Path,
+        default=DEFAULT_ZIP,
+        help=f"path to joypixels release zip (default: {DEFAULT_ZIP})",
+    )
+    args = ap.parse_args()
+
     class Handler(http.server.BaseHTTPRequestHandler):
         def do_GET(self) -> None:
             parts = urllib.parse.urlsplit(self.path)
@@ -167,7 +186,14 @@ def main() -> None:
                 self.wfile.write(emoji_list_utf8)
 
             elif parts.path.startswith(JOYPIXELS_PREFIX):
-                img = joypixels_zip.read(parts.path[len(JOYPIXELS_PREFIX) :])
+                codepoints = urllib.parse.unquote(parts.path[len(JOYPIXELS_PREFIX):])
+                name = f"png/unicode/128/{joypixels_key(codepoints)}.png"
+                try:
+                    img = joypixels_zip.read(name)
+                except KeyError:
+                    self.send_response(http.HTTPStatus.NOT_FOUND)
+                    self.end_headers()
+                    return
                 self.send_response(http.HTTPStatus.OK)
                 self.send_header("Content-Type", "image/png")
                 self.send_header("Content-Length", str(len(img)))
@@ -178,13 +204,11 @@ def main() -> None:
                 self.send_response(http.HTTPStatus.NOT_FOUND)
                 self.end_headers()
 
-    trashbot_files = importlib.resources.files(trashbot)
-    with (trashbot_files / "emoji_list.csv").open("r") as list_csv:
+    resource_files = importlib.resources.files(trashbot.resources)
+    with (resource_files / "emoji_list.csv").open("r") as list_csv:
         emoji_list = list(csv.DictReader(list_csv))
 
-    joypixels_ref = trashbot_files / "joypixels-png-unicode-32.zip"
-    joypixels_zip = pyzipper.AESZipFile(joypixels_ref.open("rb"))
-    joypixels_zip.setpassword(b"joypixels")
+    joypixels_zip = zipfile.ZipFile(args.joypixels_zip, "r")
 
     html_utf8 = HTML.encode("utf-8")
     emoji_list_utf8 = json.dumps(emoji_list).encode("utf-8")
@@ -192,7 +216,7 @@ def main() -> None:
     with http.server.ThreadingHTTPServer(("127.0.0.1", 8000), Handler) as httpd:
         print(f"serving at http://127.0.0.1:8000{HTML_PATH}")
         print(f"  list at {EMOJI_JSON_PATH}")
-        print(f"  images at {JOYPIXELS_PREFIX}<file>.png")
+        print(f"  images from {args.joypixels_zip} at {JOYPIXELS_PREFIX}<codepoints>")
         httpd.serve_forever()
 
 

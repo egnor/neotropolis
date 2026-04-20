@@ -13,15 +13,15 @@ import os
 import pygame
 import sys
 import threading
-import trashbot
 import trashbot.emoji_list
+import trashbot.resources
 
 
 @dataclasses.dataclass
 class DisplayContext:
     caption_font: pygame.font.Font
     request_line: str
-    rf_emoji: dict[int, trashbot.emoji_list.Emoji]
+    rfcode_emoji: dict[int, trashbot.emoji_list.Emoji]
     temp_square: pygame.Surface
 
 
@@ -63,15 +63,14 @@ def main(debug, force_console, fullscreen, screen, size):
     (width, height), bpp = surface.get_size(), surface.get_bitsize()
     logging.info(f"🖥️ Opened screen {screen} at {width}x{height} {bpp}bpp")
 
-    trashbot_files = importlib.resources.files(trashbot)
-    font_ref = trashbot_files / "media/NorwesterPro-Square.otf"
+    resource_files = importlib.resources.files(trashbot.resources)
+    font_ref = resource_files / "NorwesterPro-Square.otf"
     pygame.font.init()
     with importlib.resources.as_file(font_ref) as font_path:
         logging.info("🔠 Loading %s", font_path.name)
         caption_font = pygame.font.Font(font_path, 70)
 
-    emoji_list = trashbot.emoji_list.load(screen=surface)
-    rf_emoji = {e.rf_code: e for e in emoji_list}
+    rfcode_emoji = {e.rf_code: e for e in trashbot.emoji_list.load()}
 
     min_dim = min(width, height)
     temp_square = pygame.Surface((min_dim, min_dim), flags=pygame.SRCALPHA)
@@ -79,7 +78,7 @@ def main(debug, force_console, fullscreen, screen, size):
     context = DisplayContext(
         caption_font=caption_font,
         request_line="",
-        rf_emoji=rf_emoji,
+        rfcode_emoji=rfcode_emoji,
         temp_square=temp_square,
     )
 
@@ -130,7 +129,7 @@ def redraw_display(context: DisplayContext):
     scr_w, scr_h = screen.get_size()
 
     rf_code = int(request.pop("rf_code", 0)) or None
-    emoji = rf_code and context.rf_emoji[rf_code]
+    emoji = rf_code and context.rfcode_emoji[rf_code]
     if emoji and emoji.image:
         tsq = context.temp_square
         tsq_w, tsq_h = tsq.get_size()
