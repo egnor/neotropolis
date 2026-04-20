@@ -51,11 +51,10 @@ class EyeDisplayDriver:
 
         _log.info("😎 Eye display workers ready")
 
-    def set_display(self, eye: int, rf_code: int = 0, caption: str = ""):
+    def set_display(self, eye: int, request: dict):
         worker = self.eye_workers[eye]
-        request = json.dumps({"rf_code": rf_code, "caption": caption})
         try:
-            worker.stdin.write(f"{request}\n")
+            worker.stdin.write(f"{json.dumps(request)}\n")
             worker.poll()
         except (OSError, subprocess.SubprocessError):
             raise DisplayError(f"Error sending eye {eye} worker command")

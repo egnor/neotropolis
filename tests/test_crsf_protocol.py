@@ -25,37 +25,6 @@ def test_scaled_negative_scale():
 # --- Channel encoding ---
 
 
-def test_channels_center():
-    """All zeros should encode to center values and decode back."""
-    channels = [0.0] * 16
-    encoded = trashbot.crsf_protocol._rc_channels_payload.build(
-        {"scaled_values": channels, "elrs_status": None}
-    )
-    parsed = trashbot.crsf_protocol._rc_channels_payload.parse(encoded)
-    for i, v in enumerate(parsed.scaled_values):
-        assert abs(v) <= 0.001, f"ch{i} center: {v}"
-
-
-def test_channels_limits():
-    """±1.0 should round-trip within 11-bit quantization error."""
-    channels = [1.0 if i % 2 == 0 else -1.0 for i in range(16)]
-    encoded = trashbot.crsf_protocol._rc_channels_payload.build(
-        {"scaled_values": channels, "elrs_status": None}
-    )
-    parsed = trashbot.crsf_protocol._rc_channels_payload.parse(encoded)
-    for i, v in enumerate(parsed.scaled_values):
-        assert abs(v - channels[i]) < 0.002, f"ch{i}: {v}"
-
-
-def test_channel_failsafe_constant():
-    parsed = trashbot.crsf_protocol._rc_channels_payload.parse(b"\0" * 22)
-    for i, v in enumerate(parsed.scaled_values):
-        assert v == trashbot.crsf_protocol.CHANNEL_FAILSAFE, f"ch{i}: {v}"
-
-
-# --- Frame parsing (known types) ---
-
-
 def test_parse_link_statistics():
     raw = trashbot.crsf_protocol.build_frame(
         type=trashbot.crsf_protocol.frame_type.LinkStatistics,
@@ -81,13 +50,15 @@ def test_parse_link_statistics():
 def test_parse_rc_channels():
     raw = trashbot.crsf_protocol.build_frame(
         type=trashbot.crsf_protocol.frame_type.RCChannelsPacked,
-        scaled_values=[0.5, -0.5] + [0.0] * 14,
+        channels=[100 * i for i in range(16)],
         elrs_status=None,
     )
     parsed = trashbot.crsf_protocol.parse_frame(raw)
     assert parsed.type == "RCChannelsPacked"
-    assert parsed.scaled_values[0] == pytest.approx(0.5, abs=0.002)
-    assert parsed.scaled_values[1] == pytest.approx(-0.5, abs=0.002)
+    assert parsed.channels[0] == 0
+    assert parsed.channels[1] == 100
+    assert parsed.channels[2] == 200
+    assert parsed.channels[15] == 1500
 
 
 def test_parse_flight_mode():
@@ -235,3 +206,32 @@ def test_consume_frame_bad_length():
     # sync + length=255 (>64)
     r = trashbot.crsf_protocol.consume_frame(bytearray(b"\xc8\xff\x00\x00"))
     assert r is None
+
+
+# --- Channel <-> signed fraction helpers ---
+
+
+def test_signed_fraction_from_channel_endpoints():
+    sf = trashbot.crsf_protocol.signed_fraction_from_channel
+    assert sf(172) == pytest.approx(-1.0)
+    assert sf(992) == pytest.approx(0.0, abs=1e-3)
+    assert sf(1811) == pytest.approx(1.0)
+    # ELRS failsafe sends raw 0, which maps below -1.0
+    assert sf(0) < -1.0
+
+
+def test_channel_from_signed_fraction_endpoints_and_clamp():
+    cf = trashbot.crsf_protocol.channel_from_signed_fraction
+    assert cf(-1.0) == 172
+    assert cf(0.0) == 992
+    assert cf(1.0) == 1811
+    # Out-of-range inputs are clamped to the valid wire range
+    assert cf(-5.0) == 172
+    assert cf(5.0) == 1811
+
+
+def test_channel_signed_fraction_round_trip():
+    sf = trashbot.crsf_protocol.signed_fraction_from_channel
+    cf = trashbot.crsf_protocol.channel_from_signed_fraction
+    for raw in (172, 500, 992, 1300, 1811):
+        assert cf(sf(raw)) == raw

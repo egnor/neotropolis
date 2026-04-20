@@ -100,18 +100,6 @@ def _Scaled(subcon, scale, offset=0.0, digits=0):
     )
 
 
-# RC channels: ELRS uses 172-1811 for -100% to +100%, center 992
-_CH_MIN = 172
-_CH_MAX = 1811
-_CH_SCALE = 2.0 / (_CH_MAX - _CH_MIN)
-_CH_OFFSET = -0.5 * (_CH_MIN + _CH_MAX) * _CH_SCALE
-
-# ELRS sends raw channel value 0 on link loss/failsafe, which scales to this.
-# Any channel value outside ±1.0 is beyond normal range; this value (-1.21)
-# specifically indicates the receiver has no link.
-CHANNEL_FAILSAFE = round(_CH_OFFSET, 3)
-
-
 class _RCChannels(Adapter):
     """Pack/unpack 16 × 11-bit channels matching the ELRS wire format.
 
@@ -129,16 +117,10 @@ class _RCChannels(Adapter):
 
     def _decode(self, data, ctx, path):
         val = int.from_bytes(data, "little")
-        return [
-            round(((val >> (11 * i)) & 0x7FF) * _CH_SCALE + _CH_OFFSET, 3)
-            for i in range(16)
-        ]
+        return [((val >> (11 * i)) & 0x7FF) for i in range(16)]
 
     def _encode(self, obj, ctx, path):
-        val = 0
-        for i, ch in enumerate(obj):
-            raw = round((ch - _CH_OFFSET) / _CH_SCALE)
-            val |= (raw & 0x7FF) << (11 * i)
+        val = sum((ch & 0x7FF) << (11 * i) for i, ch in enumerate(obj))
         return val.to_bytes(22, "little")
 
 
@@ -149,7 +131,7 @@ _elrs_status_byte = BitStruct(
 )
 
 _rc_channels_payload = Struct(
-    "scaled_values" / _RCChannels(Bytes(22)),
+    "channels" / _RCChannels(Bytes(22)),
     "elrs_status" / Optional(_elrs_status_byte),  # ELRS extension
 )
 
@@ -264,13 +246,13 @@ def consume_frame(buffer: bytearray) -> Container | None:
             buffer.clear()
             break
         if sync_index > 0:
-            _log.warn("Skipping %d bytes", sync_index)
+            _log.warning("Skipping %d bytes", sync_index)
             del buffer[:sync_index]
             continue
 
         frame_size = buffer[1] + 2
         if not 4 <= frame_size <= 64:
-            _log.warn("Bad frame size: %d", frame_size)
+            _log.warning("Bad frame size: %d", frame_size)
             del buffer[:1]
             continue
         if len(buffer) < frame_size:
@@ -281,7 +263,50 @@ def consume_frame(buffer: bytearray) -> Container | None:
             del buffer[:frame_size]
             return parsed_frame
         except ConstructError as e:
-            _log.warn("Bad frame: %s", e)
+            _log.warning("Bad frame: %s", e)
             del buffer[:1]  # skip sync byte, re-sync
 
     return None
+
+
+# Remote control channel value format conversion
+#
+# On the CRSF wire (serial to/from RX, TX), channels are 11-bit (0-2047);
+# ELRS uses 172-1811 for -100% to 100% stick value, center is 992.
+
+_CH_MIN = 172
+_CH_MAX = 1811
+_CH_SCALE = 2.0 / (_CH_MAX - _CH_MIN)
+_CH_OFFSET = -0.5 * (_CH_MIN + _CH_MAX) * _CH_SCALE
+
+
+def signed_fraction_from_channel(raw: int) -> float:
+    """
+    Returns nominal [-1.0, 1.0] stick position from RCChannelsPacked value.
+    NOTE can return values outside that range, eg. for raw=0 no-signal sentinel.
+    """
+    assert 0 <= raw <= 2047
+    return raw * _CH_SCALE + _CH_OFFSET
+
+
+def channel_from_signed_fraction(frac: float) -> int:
+    """Returns RCChannelsPacked value from [1.0, 1.0] stick position"""
+    return min(_CH_MAX, max(_CH_MIN, round((frac - _CH_OFFSET) / _CH_SCALE)))
+
+
+# On the air, ELRS recodes the value to use fewer bits and cover only the
+# valid range (0=-100%, max=100%); only some CRSF values transmit exactly.
+
+
+def rf_code_from_channel(raw: int, *, bits: int) -> int:
+    """Returns ELRS air value for CRSF wire value"""
+    assert 0 < bits <= 12
+    code_max = (1 << bits) - 1
+    return round((raw - _CH_MIN) * code_max / (_CH_MAX - _CH_MIN))
+
+
+def channel_from_rf_code(code: int, *, bits: int) -> int:
+    """Returns CRSF wire value for ELRS air value"""
+    assert 0 < bits <= 12
+    code_max = (1 << bits) - 1
+    return _CH_MIN + round(code * (_CH_MAX - _CH_MIN) / code_max)

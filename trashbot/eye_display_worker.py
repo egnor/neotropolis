@@ -45,6 +45,7 @@ def main(debug, force_console, fullscreen, screen, size):
     ok_logging_setup.skip_traceback_for(pygame.error)
 
     logging.info("👁️ Opening eye display...")
+    os.environ["SDL_NO_SIGNAL_HANDLERS"] = "1"
     if force_console:
         os.environ["SDL_VIDEODRIVER"] = "wayland"
         os.environ["WAYLAND_DISPLAY"] = "wayland-0"
@@ -67,7 +68,7 @@ def main(debug, force_console, fullscreen, screen, size):
     pygame.font.init()
     with importlib.resources.as_file(font_ref) as font_path:
         logging.info("🔠 Loading %s", font_path.name)
-        caption_font = pygame.font.Font(font_path, 100)
+        caption_font = pygame.font.Font(font_path, 70)
 
     emoji_list = trashbot.emoji_list.load(screen=surface)
     rf_emoji = {e.rf_code: e for e in emoji_list}

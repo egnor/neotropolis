@@ -7,6 +7,7 @@ import ok_serial
 import logging
 import time
 
+import trashbot.crsf_protocol
 import trashbot.eye_display_driver
 import trashbot.motor_driver
 import trashbot.radio_driver
@@ -68,18 +69,18 @@ async def main(debug):
             motor_mtime += 0.05
             command_status = await command_motor(
                 mtime=mtime,
-                old_status=command_status,
+                prev_status=command_status,
                 please_wait=(not ready_mtime) or mtime < ready_mtime,
                 mdriver=mdriver,
                 rdriver=rdriver,
             )
 
-            if command_status not in ("Wait", "Ok"):
+            if command_status not in ("Wait", "OK"):
                 ready_mtime = mtime + 2.0
 
         if mtime >= print_mtime:
             print_mtime += 1.0
-            logging.info("\nTRASHBOT COMMAND: %s", command_status)
+            logging.info("\nTRASHBOT: command %s", command_status)
             for mo in mdriver.motors:
                 logging.info(f"⚙️ {mo.debug_str()}")
 
@@ -101,36 +102,39 @@ def abbrev(text: str):
 async def command_motor(
     *,
     mtime: float,
-    old_status: str,
+    prev_status: str,
     please_wait: bool,
     mdriver: trashbot.motor_driver.MotorDriver,
     rdriver: trashbot.radio_driver.RadioDriver,
 ):
-    if not (channels := rdriver.recent.get("RCChannelsPacked")):
-        command_status = "!RC"
-    elif channels.mtime < mtime - 0.1:
-        command_status = "Old"
-    elif channels.scaled_values[4] < 0.1:
+    signed_fraction = trashbot.crsf_protocol.signed_fraction_from_channel
+
+    if not (rc := rdriver.recent.get("RCChannelsPacked")):
+        command_status = "Off"
+    elif rc.mtime < mtime - 0.1:
+        command_status = "Lost"
+    elif signed_fraction(rc.channels[4]) < 0.1:
         command_status = "!Arm"
-    elif any(abs(v) > 1.0 for v in channels.scaled_values[:5]):
-        command_status = "Inv"
-    elif old_status != "Ok" and channels.scaled_values[2] > 0.05:
+    elif abs(throttle := signed_fraction(rc.channels[2])) > 1.0:
+        command_status = "!Thr"
+    elif prev_status != "OK" and throttle > 0.05:
         command_status = "Thr+"
-    elif old_status != "Ok" and channels.scaled_values[2] < -0.05:
+    elif prev_status != "OK" and throttle < -0.05:
         command_status = "Thr-"
-    elif old_status != "Ok" and channels.scaled_values[0] > 0.05:
+    elif abs(rotate := signed_fraction(rc.channels[0])) > 1.0:
+        command_status = "!Rot"
+    elif prev_status != "OK" and rotate > 0.05:
         command_status = "Rot+"
-    elif old_status != "Ok" and channels.scaled_values[0] < -0.05:
+    elif prev_status != "OK" and rotate < -0.05:
         command_status = "Rot-"
+    elif not all(mo.is_active for mo in mdriver.motors):
+        command_status = "On"
     elif please_wait:
         command_status = "Wait"
     else:
-        command_status = "Ok"
+        command_status = "OK"
 
-    if command_status == "Ok":
-        assert channels
-        throttle = channels.scaled_values[2]
-        rotate = channels.scaled_values[0]
+    if command_status == "OK":
         vels = [throttle * 10 - rotate * 5, throttle * 10 + rotate * 5]
         vels = [0 if abs(v) < 0.1 else v for v in vels]
     else:
@@ -150,19 +154,20 @@ def send_telemetry(
     mdriver: trashbot.motor_driver.MotorDriver,
     rdriver: trashbot.radio_driver.RadioDriver,
 ):
-    if all(mo.is_active for mo in mdriver.motors):
-        motor_status = "Go"
-    elif all(mo.state == mdriver.motors[0].state for mo in mdriver.motors):
-        motor_status = abbrev(mdriver.motors[0].state)
-    else:
-        motor_status = "/".join(abbrev(mo.state) for mo in mdriver.motors)
+    text = command_status
+    if not all(mo.is_active for mo in mdriver.motors):
+        motor_states = [abbrev(mo.state) for mo in mdriver.motors]
+        if all(ms == motor_states[0] for ms in motor_states[1:]):
+            text += f" M:{motor_states[0]}"
+        else:
+            text += f" M:{'/'.join(motor_states)}"
 
-    for err in set.union(*(mo.errors for mo in mdriver.motors)):
-        motor_status += " " + abbrev(err)
+    motor_errors = set.union(*(mo.errors for mo in mdriver.motors))
+    if motor_errors:
+        text += f" E:{','.join(motor_errors)}"
 
-    text = f"C:{command_status} M:{motor_status}"
     while len(text) > 15:
-        text = " ".join(text.split()[:-1]) + "+"
+        text = " ".join(text.split()[:-1]) + ">"
 
     rdriver.send_frame(type="FlightMode", flight_mode=text)
 
@@ -183,7 +188,27 @@ def update_eye_displays(
     mdriver: trashbot.motor_driver.MotorDriver,
     rdriver: trashbot.radio_driver.RadioDriver,
 ):
-    pass
+    caption_words = []
+    if command_status != "OK":
+        caption_words.append(f"Remote {command_status}")
+    if any(mo.state == "ESTOP" for mo in mdriver.motors):
+        caption_words.append("E-Stop Pressed")
+    elif any(mo.errors for mo in mdriver.motors):
+        caption_words.append("Motor Issue")
+    elif any(mo.state == "IDLE" for mo in mdriver.motors):
+        caption_words.append("Motor Idle")
+
+    if not (rc := rdriver.recent.get("RCChannelsPacked")):
+        rf_codes = (0, 0)
+    else:
+        rf_codes = (100, 100)
+
+    rc
+
+    caption_text = " / ".join(caption_words).upper()  # font has no good lcase
+    for eye, rf_code in enumerate(rf_codes):
+        request = {"rf_code": rf_code, "caption": caption_text}
+        ddriver.set_display(eye, request)
 
 
 if __name__ == "__main__":

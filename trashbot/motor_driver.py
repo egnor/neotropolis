@@ -207,7 +207,7 @@ class MotorDriver:
             )
             acode, integ, state, rcode, en, vel, vbus = values
         except TimeoutError:
-            _log.warn(f"{mo} timeout in refresh")
+            _log.warning(f"{mo} timeout in refresh")
             mo.timeout_count += 1
             if mo.timeout_count >= 5:
                 raise

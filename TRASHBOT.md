@@ -136,6 +136,3 @@ keep aux grids stable across TX setups.
   needed for control or video (both have dedicated radio links), but could be
   useful for software updates, monitoring, or a secondary data channel.
 - OPERATOR UX: What does the control station look like? What gamepad?
-- NOMAD AVAILABILITY: RadioMaster Nomad Dual is out of stock at some retailers.
-  Fallback: BetaFPV Micro TX V2 900MHz ($60, 2W, SX1262) with GEPRC PA500 RX
-  ($26, 500mW telemetry) -- single-band 900MHz only but still excellent range.

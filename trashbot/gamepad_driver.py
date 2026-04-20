@@ -76,7 +76,7 @@ def connect() -> GamepadDriver:
             dev = evdev.InputDevice(dev_path)
             caps = dev.capabilities()
         except OSError:
-            _log.warn(f"Error opening input dev {dev_path}")
+            _log.warning(f"Error opening input dev {dev_path}")
             continue
 
         abs_caps = cast(
