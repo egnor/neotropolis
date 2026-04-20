@@ -138,18 +138,29 @@ _rc_channels_payload = Struct(
 # TX power is an enum index, not milliwatts
 _tx_to_mw = [0, 10, 25, 100, 500, 1000, 2000, 250, 50]
 
+# RSSI sign handling is a mess: per CRSF spec, the byte is unsigned magnitude
+# (e.g. 80 means -80 dBm), and that's what ELRS RXes send. But ELRS TXes
+# re-negate before transmitting so OpenTX can display a signed dBm value, so
+# the same byte position holds int8 -80 (0xB0) instead. Since RSSI is always
+# ≤0 dBm in practice, decoding as signed int8 and taking -abs() handles both.
+_rssi_dbm = ExprAdapter(
+    Int8sb,
+    decoder=lambda obj, ctx: -abs(obj),
+    encoder=lambda obj, ctx: abs(round(obj)),
+)
+
 _link_statistics_payload = Struct(
-    "up_rssi_ant1_dbm" / _Scaled(Int8ub, -1),
-    "up_rssi_ant2_dbm" / _Scaled(Int8ub, -1),
+    "up_rssi_ant1_dbm" / _rssi_dbm,
+    "up_rssi_ant2_dbm" / _rssi_dbm,
     "up_link_quality" / Int8ub,
     "up_snr" / Int8sb,
     "active_antenna" / Int8ub,
     "rf_mode" / Int8ub,
     "up_tx_power_mw" / Mapping(Int8ub, {k: v for v, k in enumerate(_tx_to_mw)}),
-    "down_rssi_ant1_dbm" / _Scaled(Int8ub, -1),
+    "down_rssi_ant1_dbm" / _rssi_dbm,
     "down_link_quality" / Int8ub,
     "down_snr" / Int8sb,
-    "down_rssi_ant2_dbm" / Optional(_Scaled(Int8ub, -1)),  # ELRS
+    "down_rssi_ant2_dbm" / Optional(_rssi_dbm),  # ELRS
 )
 
 _battery_sensor_payload = Struct(
