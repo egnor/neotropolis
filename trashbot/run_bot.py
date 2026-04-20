@@ -82,8 +82,7 @@ async def main(debug):
             logging.info("\nTRASHBOT: command %s", command_status)
             for mo in mdriver.motors:
                 logging.info(f"⚙️ {mo.debug_str()}")
-            for type, count in sorted(rdriver.counts.items()):
-                logging.info(f"🛜 {count:>3} {type}")
+            logging.info("📻 %s", rdriver.debug_str())
             rdriver.counts.clear()
 
         if mtime >= telemetry_mtime:
@@ -176,7 +175,7 @@ def send_telemetry(
     rdriver.send_frame(
         type="BatterySensor",
         voltage_v=min(mo.bus_volts for mo in mdriver.motors),
-        current_a=0,  # TODO: maybe capture motor current?
+        current_a=max(0.0, sum(mo.motor_amps for mo in mdriver.motors)),
         capacity_used_mah=0,  # no battery model
         remaining_pct=0,  # no battery model
     )

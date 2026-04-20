@@ -39,6 +39,7 @@ class Motor:
     firmware: list[int]
 
     bus_volts: float = 0.0
+    motor_amps: float = 0.0
     is_active: bool = False
     state: str = ""
     reason: str = ""
@@ -64,12 +65,13 @@ class Motor:
         ]
         return (
             f"M{self.odrive.effective_node_id} {self.debug_emoji()}"
-            f" C{self.command_vel:+.1f}"
-            f" A{self.estim_vel:+.1f}"
-            f" F{self.feed_torq:+05.1f}"
-            f" I{self.integ_torq:+05.1f}"
-            f" {self.bus_volts:+.1f}V"
-            f" {' '.join(status_words)}"
+            + f" V{self.estim_vel:+.1f}"
+            + (f" C{self.command_vel:+.1f}" if self.is_active else "")
+            + (f" F{self.feed_torq:+05.1f}" if self.is_active else "")
+            + (f" I{self.integ_torq:+05.1f}" if self.is_active else "")
+            + f" {self.bus_volts:+.1f}V"
+            + (f" {self.motor_amps:+.1f}A" if self.is_active else "")
+            + f" {' '.join(status_words)}"
         )
 
     def debug_emoji(self):
@@ -202,11 +204,12 @@ class MotorDriver:
                     "axis0.disarm_reason",
                     "axis0.enable_pin.state",
                     "axis0.vel_estimate",
+                    "ibus",
                     "vbus_voltage",
                 ],
                 transient=True,
             )
-            acode, integ, state, rcode, en, vel, vbus = values
+            acode, integ, state, rcode, en, vel, ibus, vbus = values
         except TimeoutError:
             _log.warning(f"{mo} timeout in refresh")
             mo.timeout_count += 1
@@ -221,6 +224,7 @@ class MotorDriver:
         mo.reason = OError(rcode).name if rcode else ""
         mo.errors = {e.name for e in OError(acode)}
         mo.bus_volts = vbus
+        mo.motor_amps = ibus
 
         # Copy (and translate) controller diagnostic variables
         flip = -1 if mo.odrive.effective_node_id == 1 else 1
