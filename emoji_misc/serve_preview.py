@@ -12,9 +12,11 @@ import http.server
 import importlib.resources
 import json
 import pathlib
+import struct
 import trashbot.resources
 import urllib
 import zipfile
+import zlib
 
 VARIATION_SELECTOR_16 = 0xFE0F
 ZWJ = 0x200D
@@ -24,6 +26,24 @@ def joypixels_key(codepoints_str: str) -> str:
     cps = [int(c, 16) for c in codepoints_str.split()]
     kept = [c for c in cps if c not in (VARIATION_SELECTOR_16, ZWJ)]
     return "-".join(f"{c:04x}" for c in kept)
+
+
+def read_zip_member(zip_path: pathlib.Path, zinfo: zipfile.ZipInfo) -> bytes:
+    # JoyPixels shares data ranges between identical PNGs, which Python 3.12's
+    # ZipFile.open() flags as "Overlapped entries". Decompress raw instead.
+    with open(zip_path, "rb") as f:
+        f.seek(zinfo.header_offset)
+        header = f.read(30)
+        if header[:4] != b"PK\x03\x04":
+            raise ValueError(f"bad local header for {zinfo.filename}")
+        fname_len, extra_len = struct.unpack("<HH", header[26:30])
+        f.seek(zinfo.header_offset + 30 + fname_len + extra_len)
+        raw = f.read(zinfo.compress_size)
+    if zinfo.compress_type == zipfile.ZIP_STORED:
+        return raw
+    if zinfo.compress_type == zipfile.ZIP_DEFLATED:
+        return zlib.decompress(raw, -15)
+    raise ValueError(f"unsupported compress_type: {zinfo.compress_type}")
 
 HTML_PATH = "/"
 EMOJI_JSON_PATH = "/emoji_list.json"
@@ -189,11 +209,12 @@ def main() -> None:
                 codepoints = urllib.parse.unquote(parts.path[len(JOYPIXELS_PREFIX):])
                 name = f"png/unicode/128/{joypixels_key(codepoints)}.png"
                 try:
-                    img = joypixels_zip.read(name)
+                    zinfo = joypixels_zip.getinfo(name)
                 except KeyError:
                     self.send_response(http.HTTPStatus.NOT_FOUND)
                     self.end_headers()
                     return
+                img = read_zip_member(args.joypixels_zip, zinfo)
                 self.send_response(http.HTTPStatus.OK)
                 self.send_header("Content-Type", "image/png")
                 self.send_header("Content-Length", str(len(img)))
