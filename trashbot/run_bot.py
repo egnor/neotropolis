@@ -18,7 +18,7 @@ import trashbot.radio_driver
 async def main(debug):
     ok_logging_options = {
         "OK_LOGGING_LEVEL": "debug" if debug else "info",
-        "OK_LOGGING_REPEAT_PER_MINUTE": 60,  # we repeat status a lot
+        "OK_LOGGING_REPEAT_PER_MINUTE": 100,  # we repeat status a lot
         "OK_LOGGING_TIME_FORMAT": "%H:%M:%S",
     }
     ok_logging_setup.install(ok_logging_options)
@@ -82,6 +82,9 @@ async def main(debug):
             logging.info("\nTRASHBOT: command %s", command_status)
             for mo in mdriver.motors:
                 logging.info(f"⚙️ {mo.debug_str()}")
+            for type, count in sorted(rdriver.counts.items()):
+                logging.info(f"🛜 {count:>3} {type}")
+            rdriver.counts.clear()
 
         if mtime >= telemetry_mtime:
             telemetry_mtime += 0.1

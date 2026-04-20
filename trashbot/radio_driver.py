@@ -24,6 +24,7 @@ class RadioDriver:
         self.serial = serial
         self.buffer = bytearray()
         self.recent: dict[str, construct.Container] = {}
+        self.counts: dict[str, int] = {}
         self.raise_dsr_mtime = 0.0
         self.raise_dtr_mtime = 0.0
 
@@ -34,6 +35,7 @@ class RadioDriver:
             _log.debug("Received frame: %s", frame.type)
             frame["mtime"] = mtime
             self.recent[frame.type] = frame
+            self.counts[frame.type] = self.counts.get(frame.type, 0) + 1
         elif self.raise_dsr_mtime and mtime > self.raise_dsr_mtime:
             # reboot processing: raise DSR with DTR low, then raise DTR later
             self.raise_dsr_mtime = 0
