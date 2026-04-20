@@ -50,11 +50,10 @@ async def main(debug):
     command_status = "Ini"
     while True:
         await asyncio.sleep(0.01)
-        mtime = time.monotonic()
-
         while rdriver.poll_frame():
             pass
 
+        mtime = time.monotonic()
         if mtime >= display_mtime:
             display_mtime += 0.05
             update_displays(
