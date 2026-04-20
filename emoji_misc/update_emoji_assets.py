@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Updates trashbot/emoji_list.csv (rf_code assignments) and rebuilds
-trashbot/emoji_list.png (32x32 sprite sheet of included emoji, in rf_code order).
+"""
+Updates trashbot/resources/emoji_list.csv (rf_code assignments) and rebuilds
+trashbot/resources/emoji_sheet.png (32x32 sprite sheet of included emoji,
+in rf_code order).
 
-Reads PNG assets from a JoyPixels release zip (default: ../joypixels-10.0-emoji.zip).
+Reads PNG assets from JoyPixels release (default: ../joypixels-10.0-emoji.zip).
 """
 
 import argparse
@@ -17,8 +19,8 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 import pygame  # noqa: E402
 
 HERE = pathlib.Path(__file__).parent
-CSV_PATH = HERE.parent / "trashbot" / "emoji_list.csv"
-SHEET_PATH = HERE.parent / "trashbot" / "emoji_list.png"
+CSV_PATH = HERE.parent / "trashbot" / "resources" / "emoji_list.csv"
+SHEET_PATH = HERE.parent / "trashbot" / "resources" / "emoji_sheet.png"
 DEFAULT_ZIP = HERE.parent.parent / "joypixels-10.0-emoji.zip"
 
 SPRITE_SIZE = 32
