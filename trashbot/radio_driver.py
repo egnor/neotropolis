@@ -69,23 +69,22 @@ class RadioDriver:
                 parts.append(f"⚡️{snr}")
             return " ".join(parts)
 
-        lines = [""]
+        parts = []
         if stat := self.recent.get("LinkStatistics"):
             if base_text := link_text(
                 [stat.down_rssi_ant1_dbm, stat.down_rssi_ant2_dbm],
                 stat.down_link_quality,
                 stat.down_snr,
             ):
-                lines[0] += f"🏠️[{base_text}]"
+                parts.append(f"🏠️[{base_text}]")
             if bot_text := link_text(
                 [stat.up_rssi_ant1_dbm, stat.up_rssi_ant2_dbm],
                 stat.up_link_quality,
                 stat.up_snr,
             ):
-                lines[0] += f"🤖[{bot_text}]"
+                parts.append(f"🤖[{bot_text}]")
 
-        lines[0] = lines[0] or "[no signal statistics]"
-
+        lines = [" ".join(parts) or "[no signal statistics]"]
         for type, count in sorted(self.counts.items()):
             lines.append(f"  💬 {count:>3d}x {type}")
         return "\n".join(lines)

@@ -41,26 +41,33 @@ class GamepadDriver:
     def __init__(self, *, dev: evdev.InputDevice, caps: dict):
         self.evdev = dev
         self.axis_info = dict(caps.get(evdev.ecodes.EV_ABS, []))
+        self.recent: dict[str, int] = {}
 
     def poll_event(self) -> tuple[str, int] | None:
         while True:
             try:
-                event = self.evdev.read_one()
+                ev = self.evdev.read_one()
             except OSError:
                 raise GamepadError("Error reading gamepad")
 
-            if not event:
+            if not ev:
                 return None
-            elif event.type == evdev.ecodes.EV_ABS:
-                t = AXIS_NAMES.get(event.code) or f"AXIS_{event.code}"
-                if event.value and (info := self.axis_info.get(event.code)):
-                    limit = -info.min if event.value < 0 else info.max
-                    return (t, event.value / limit)
+
+            out_type, out_value = "", 0
+            if ev.type == evdev.ecodes.EV_ABS:
+                out_type = AXIS_NAMES.get(ev.code) or f"AXIS_{ev.code}"
+                if ev.value and (info := self.axis_info.get(ev.code)):
+                    limit = -info.min if ev.value < 0 else info.max
+                    out_value = ev.value / limit
                 else:
-                    return (t, event.value)
-            elif event.type == evdev.ecodes.EV_KEY:
-                t = BUTTON_NAMES.get(event.code) or f"BUTTON_{event.code}"
-                return (t, event.value)
+                    out_value = ev.value
+            elif ev.type == evdev.ecodes.EV_KEY:
+                out_type = BUTTON_NAMES.get(ev.code) or f"BUTTON_{ev.code}"
+                out_value = ev.value
+
+            if out_type:
+                self.recent[out_type] = out_value
+                return (out_type, out_value)
 
 
 def connect() -> GamepadDriver:

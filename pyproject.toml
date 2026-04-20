@@ -27,6 +27,7 @@ motor = "trashbot.motor_cli:main"
 gamepad = "trashbot.gamepad_cli:main"
 pi_setup = "trashbot.pi_setup_cli:main"
 radio = "trashbot.radio_cli:main"
+run_base = "trashbot.run_base:main"
 run_bot = "trashbot.run_bot:main"
 
 [build-system]
@@ -46,9 +47,7 @@ dev = [
 [tool.mypy]
 exclude_gitignore = true
 files = "trashbot"
-overrides = [
-  { module = "odrive.*", follow_untyped_imports = true },
-]
+overrides = [{ module = "odrive.*", follow_untyped_imports = true }]
 
 [tool.pytest]
 asyncio_mode = "auto"

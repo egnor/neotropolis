@@ -149,12 +149,12 @@ _link_statistics_payload = Struct(
     "down_rssi_ant1_dbm" / _Scaled(Int8ub, -1),
     "down_link_quality" / Int8ub,
     "down_snr" / Int8sb,
-    "down_rssi_ant2_dbm" / Optional(_Scaled(Int8ub, -1)),  # ELRS extension
+    "down_rssi_ant2_dbm" / Optional(_Scaled(Int8ub, -1)),  # ELRS
 )
 
 _battery_sensor_payload = Struct(
-    "voltage_v" / _Scaled(Int16ub, 0.1),
-    "current_a" / _Scaled(Int16ub, 0.1),
+    "voltage_v" / _Scaled(Int16ub, 0.1, digits=1),
+    "current_a" / _Scaled(Int16ub, 0.1, digits=1),
     "capacity_used_mah" / Int24ub,
     "remaining_pct" / Int8ub,
 )
@@ -189,8 +189,8 @@ _remote_related_payload = Struct(
     "dest_addr" / Int8ub,
     "origin_addr" / Int8ub,
     "sub_type" / Int8ub,  # 0x10 = timing, 0x3C = game
-    "rate_us" / _Scaled(Int32ub, 0.1),  # desired RC packet interval
-    "offset_us" / _Scaled(Int32sb, 0.1),  # phase offset for sync
+    "rate_us" / _Scaled(Int32ub, 0.1, digits=1),  # desired RC packet interval
+    "offset_us" / _Scaled(Int32sb, 0.1, digits=1),  # phase offset for sync
 )
 
 _heartbeat_payload = Struct(
