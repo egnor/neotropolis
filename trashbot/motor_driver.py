@@ -65,8 +65,8 @@ class Motor:
         ]
         return (
             f"M{self.odrive.effective_node_id} {self.debug_emoji()}"
-            + f" V{self.estim_vel:+.1f}"
-            + (f" C{self.command_vel:+.1f}" if self.is_active else "")
+            + f" PV{self.estim_vel:+.1f}"
+            + (f" SV{self.command_vel:+.1f}" if self.is_active else "")
             + (f" F{self.feed_torq:+05.1f}" if self.is_active else "")
             + (f" I{self.integ_torq:+05.1f}" if self.is_active else "")
             + f" {self.bus_volts:+.1f}V"
