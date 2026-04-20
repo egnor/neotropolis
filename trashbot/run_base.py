@@ -50,7 +50,7 @@ async def main(debug):
             rx_mode = rdriver.recent.get("FlightMode")
             rx_text = "RX " + (rx_mode.flight_mode if rx_mode else "N/A")
             logging.info("\nTRASHBASE: command %s; %s", command_status, rx_text)
-            logging.info(f"📻 %s", rdriver.debug_str())
+            logging.info("📻 %s", rdriver.debug_str())
             rdriver.counts.clear()
 
         if mtime >= transmit_mtime:
