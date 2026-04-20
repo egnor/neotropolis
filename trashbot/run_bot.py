@@ -112,7 +112,7 @@ async def command_motor(
     get_frac = trashbot.crsf_protocol.signed_fraction_from_channel
 
     if not (rc := rdriver.recent.get("RCChannelsPacked")):
-        command_status = "Off"
+        command_status = "!RX"
     elif rc.mtime < mtime - 0.1:
         command_status = "Lost"
     elif get_frac(rc.channels[4]) < 0.1:
@@ -130,7 +130,7 @@ async def command_motor(
     elif prev_status != "OK" and rotate < -0.05:
         command_status = "Rot-"
     elif not all(mo.is_active for mo in mdriver.motors):
-        command_status = "On"
+        command_status = "Ready"
     elif please_wait:
         command_status = "Wait"
     else:
