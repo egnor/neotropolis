@@ -24,9 +24,9 @@ _log = logging.getLogger(__name__)
 
 
 def load(screen: pygame.Surface | None = None) -> list[Emoji]:
-    _log.info("🤪 Loading emoji...")
     trashbot_files = importlib.resources.files(trashbot)
     emoji_list_ref = trashbot_files / "emoji_list.csv"
+    _log.info("🤪 Loading %s", emoji_list_ref)
     with emoji_list_ref.open("r") as emoji_list_file:
         emoji_list_rows = list(csv.DictReader(emoji_list_file))
 
