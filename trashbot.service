@@ -2,11 +2,10 @@
 Description=Trashbot driving
 
 [Service]
-User=pi
 WorkingDirectory=/home/pi/neotropolis
 ExecStart=/home/pi/.local/bin/mise exec -- run_bot
 Restart=always
 RestartSec=5
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target

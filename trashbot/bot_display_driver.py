@@ -41,6 +41,9 @@ class BotDisplayDriver:
             except (OSError, subprocess.SubprocessError):
                 raise DisplayError(f"Error reading eye {ei} worker status")
 
+            if not ready_line.strip():
+                raise DisplayError(f"Empty output from eye {ei} worker")
+
             try:
                 ready = json.loads(ready_line)
             except json.JSONDecodeError:

@@ -117,23 +117,31 @@ def main(bot, base):
     #
     # systemd services (runs last after everything else is set up)
     #
+    # The bot service is a *user* unit so it inherits the desktop session's
+    # Wayland/XDG environment (it drives Wayland-backed "eye" displays).
+    # It starts/stops with the pi console autologin session; without a
+    # compositor there's no display to drive anyway.
+    #
 
     service_name = None
     if bot:
         service_name = "trashbot.service"
 
     if service_name:
-        logging.info("⚙️ Checking systemd unit: %s", service_name)
         source_unit_path = REPO_PATH / service_name
-        system_services_path = pathlib.Path("/etc/systemd/system")
-        installed_unit_path = system_services_path / service_name
-        resolved_unit_path = installed_unit_path.resolve()
-        if resolved_unit_path != source_unit_path:
-            sub.run("sudo", "systemctl", "enable", source_unit_path)
+        user_unit_path = (
+            pathlib.Path.home() / ".config/systemd/user" / service_name
+        )
 
-        status_lines = sub.stdout_lines("systemctl", "show", service_name)
+        logging.info("⚙️ Checking user systemd unit: %s", service_name)
+        if user_unit_path.resolve() != source_unit_path:
+            sub.run("systemctl", "--user", "enable", source_unit_path)
+
+        status_lines = sub.stdout_lines(
+            "systemctl", "--user", "show", service_name
+        )
         if "ActiveState=active" not in status_lines:
-            sub.run("sudo", "systemctl", "restart", service_name)
+            sub.run("systemctl", "--user", "restart", service_name)
 
     #
     # All done
