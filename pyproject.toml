@@ -27,10 +27,10 @@ version = "0.0"
 emoji_input = "trashbot.emoji_input_cli:main"
 motor = "trashbot.motor_cli:main"
 gamepad = "trashbot.gamepad_cli:main"
-pi_setup = "trashbot.pi_setup_cli:main"
 radio = "trashbot.radio_cli:main"
 run_base = "trashbot.run_base:main"
 run_bot = "trashbot.run_bot:main"
+system_setup = "trashbot.system_setup_cli:main"
 
 [build-system]
 requires = ["uv_build>=0.10.0,<0.11.0"]
