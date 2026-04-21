@@ -143,7 +143,7 @@ _tx_to_mw = [0, 10, 25, 100, 500, 1000, 2000, 250, 50]
 # re-negate before transmitting so OpenTX can display a signed dBm value, so
 # the same byte position holds int8 -80 (0xB0) instead. Since RSSI is always
 # ≤0 dBm in practice, decoding as signed int8 and taking -abs() handles both.
-_rssi_dbm = ExprAdapter(
+_rssi_dbm: ExprAdapter = ExprAdapter(
     Int8sb,
     decoder=lambda obj, ctx: -abs(obj),
     encoder=lambda obj, ctx: abs(round(obj)),

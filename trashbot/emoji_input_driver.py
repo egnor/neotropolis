@@ -44,7 +44,7 @@ class EmojiInputDriver:
         device.reset()
         self._rows, self._cols = device.key_layout()
         self._log = logging.getLogger(f"{__name__}[{device.id()}]")
-        self._log.info(f"🎛️ {device.deck_type()} ({device.get_serial_number()})")
+        self._log.info(f"🎛️ {device.deck_type()}: {device.get_serial_number()}")
 
         kif = device.key_image_format()
         self._namehint = f"image.{kif['format'].lower()}"
@@ -59,9 +59,8 @@ class EmojiInputDriver:
             if (gi := name_index.get(emoji.group)) is not None:
                 self._groups[gi].emojis.append(emoji)
 
-        self._emoji_images = {}
-        self._emoji_bytes = {}
-        self._init_emoji_images()
+        self._emoji_images = self._make_emoji_images()
+        self._emoji_bytes = self._make_emoji_bytes()
 
         self._show_group = 0
         self._pick_group_emoji = (-1, -1)
@@ -100,7 +99,7 @@ class EmojiInputDriver:
             return
 
         is_active = (group_index, emoji_index) == self._pick_group_emoji
-        color = ((192, 192, 192) if is_active else (0, 0, 0),)
+        color = (192, 192, 192) if is_active else (0, 0, 0)
         emojis = group.emojis
         emoji = emojis[emoji_index] if emoji_index < len(emojis) else None
         self._set_key(col=col, row=row, color=color, emoji=emoji)
@@ -125,7 +124,7 @@ class EmojiInputDriver:
                 self._temp_image.blit(self._emoji_images[emoji.unicode])
             self.device.set_key_image(pos, self._to_bytes(self._temp_image))
 
-    def _init_emoji_images(self):
+    def _make_emoji_images(self) -> dict[str, pygame.Surface]:
         """Populates self._emoji_images and self._emoji_bytes"""
 
         kif = self.device.key_image_format()
@@ -134,6 +133,7 @@ class EmojiInputDriver:
         flips = kif["flip"]
 
         self._log.info(f"🖼️ Converting emoji to {kw}x{kh}px")
+        out: dict[str, pygame.Surface] = {}
         for emoji in self.emojis:
             # Convert emoji to StreamDeck size and orientation
             emoji_size = emoji.image.get_size()
@@ -144,12 +144,22 @@ class EmojiInputDriver:
             final = pygame.Surface((kw, kh), flags=pygame.SRCALPHA)
             final = final.convert(emoji.image)
             final.blit(xform, ((kw - xw) // 2, (kh - xh) // 2))
-            self._emoji_images[emoji.unicode] = final
+            out[emoji.unicode] = final
 
+        return out
+
+    def _make_emoji_bytes(self) -> dict[str, bytes]:
+        out: dict[str, bytes] = {}
+        for emoji in self.emojis:
             # Save emoji in StreamDeck format for quick output
             self._temp_image.fill((0, 0, 0))
-            self._temp_image.blit(final)
-            self._emoji_bytes[emoji.unicode] = self._to_bytes(self._temp_image)
+            self._temp_image.blit(self._emoji_images[emoji.unicode])
+            out[emoji.unicode] = self._to_bytes(self._temp_image)
+
+        return out
+
+    def _make_scroll_images(self):
+        pass
 
     def _to_bytes(self, image) -> bytes:
         """Returns StreamDeck-formatted bytes for an image"""

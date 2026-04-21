@@ -16,7 +16,7 @@ class Emoji:
     group: str
     subgroup: str
     order: int
-    image: pygame.Surface | None
+    image: pygame.Surface
 
 
 _log = logging.getLogger(__name__)

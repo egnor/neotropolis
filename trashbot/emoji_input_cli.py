@@ -41,6 +41,8 @@ def main(debug, id):
             device, emojis
         )
 
+        emoji_input
+
     finally:
         device.close()
 

@@ -129,8 +129,7 @@ def redraw_display(context: DisplayContext):
     scr_w, scr_h = screen.get_size()
 
     rf_code = int(request.pop("rf_code", 0)) or None
-    emoji = rf_code and context.rfcode_emoji.get(rf_code)
-    if emoji and emoji.image:
+    if rf_code and (emoji := context.rfcode_emoji.get(rf_code)):
         tsq = context.temp_square
         tsq_w, tsq_h = tsq.get_size()
         tsq_pos = ((scr_w - tsq_w) // 2, (scr_h - tsq_h) // 2)
