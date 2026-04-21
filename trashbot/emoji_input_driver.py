@@ -4,6 +4,7 @@ import dataclasses
 import io
 import logging
 import pygame
+import pygame.gfxdraw
 import StreamDeck.Devices.StreamDeck
 
 import trashbot.emoji_list
@@ -130,7 +131,6 @@ class EmojiInputDriver:
         kif = self.device.key_image_format()
         kw, kh = kif["size"]
         rot = kif["rotation"]
-        flips = kif["flip"]
 
         self._log.info(f"🖼️ Converting emoji to {kw}x{kh}px")
         out: dict[str, pygame.Surface] = {}
@@ -139,10 +139,10 @@ class EmojiInputDriver:
             emoji_size = emoji.image.get_size()
             zoom = min(kw / emoji_size[0], kh / emoji_size[1]) * 0.8
             xform = pygame.transform.rotozoom(emoji.image, rot, zoom)
-            xform = pygame.transform.flip(xform, *flips)
+            xform = pygame.transform.flip(xform, *kif["flip"])
             xw, xh = xform.get_size()
             final = pygame.Surface((kw, kh), flags=pygame.SRCALPHA)
-            final = final.convert(emoji.image)
+            final = final.convert(xform)
             final.blit(xform, ((kw - xw) // 2, (kh - xh) // 2))
             out[emoji.unicode] = final
 
@@ -159,6 +159,12 @@ class EmojiInputDriver:
         return out
 
     def _make_scroll_images(self):
+        kif = self.device.key_image_format()
+        kw, kh = kif["size"]
+
+        for dir in ("U", "D"):
+            for ena in ("Y", "N"):
+                pass
         pass
 
     def _to_bytes(self, image) -> bytes:
