@@ -33,7 +33,9 @@ def load() -> list[Emoji]:
         rows = list(csv.DictReader(emoji_list_file))
 
     with importlib.resources.as_file(emoji_sheet_ref) as emoji_sheet_path:
-        sheet = pygame.image.load(str(emoji_sheet_path)).convert_alpha()
+        sheet = pygame.image.load(str(emoji_sheet_path))
+        if pygame.display.get_init():
+            sheet = sheet.convert_alpha()
 
     included = sorted(
         (r for r in rows if r["status"] == "included"),

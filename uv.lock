@@ -398,6 +398,7 @@ dependencies = [
     { name = "pyserial" },
     { name = "python-can" },
     { name = "pyusb" },
+    { name = "streamdeck" },
 ]
 
 [package.dev-dependencies]
@@ -426,6 +427,7 @@ requires-dist = [
     { name = "pyserial", specifier = ">=3.5" },
     { name = "python-can", specifier = ">=4.6.1" },
     { name = "pyusb", specifier = ">=1.3.1" },
+    { name = "streamdeck", specifier = ">=0.9.8" },
 ]
 
 [package.metadata.requires-dev]
@@ -1632,6 +1634,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/28/e3/55dcc2cfbc3ca9c29519eb6884dd1415ecb53b0e934862d3559ddcb7e20b/stack_data-0.6.3.tar.gz", hash = "sha256:836a778de4fec4dcd1dcd89ed8abff8a221f58308462e1c4aa2a3cf30148f0b9", size = 44707, upload-time = "2023-09-30T13:58:05.479Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f1/7b/ce1eafaf1a76852e2ec9b22edecf1daa58175c090266e9f6c64afcd81d91/stack_data-0.6.3-py3-none-any.whl", hash = "sha256:d5558e0c25a4cb0853cddad3d77da9891a08cb85dd9f9f91b9f8cd66e511e695", size = 24521, upload-time = "2023-09-30T13:58:03.53Z" },
+]
+
+[[package]]
+name = "streamdeck"
+version = "0.9.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f1/61/364567677f33b51fa335cc03bb41e256958b5a442aa64690f73869f77ee5/streamdeck-0.9.8.tar.gz", hash = "sha256:acee4ad207a40d4cc2256d3a4c22b9f591e3c390efbe515e439ce518b31d0125", size = 2557549, upload-time = "2025-09-24T00:11:22.097Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5f/76/01e4ed79974c8416a5e90ebfe52656730846670191608bfced05fc218a3f/streamdeck-0.9.8-py3-none-any.whl", hash = "sha256:95c5a0a5349ff8ed5f0b7dcec1a955afc29122cf89e4b2797ced01ac8d61ff32", size = 32754, upload-time = "2025-09-24T00:11:10.428Z" },
 ]
 
 [[package]]

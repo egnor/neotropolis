@@ -15,6 +15,7 @@ dependencies = [
   "pygame-ce>=2.5.7",
   "pysdl3>=0.9.11b0",
   "ok-subprocess-defaults>=0.2",
+  "streamdeck>=0.9.8",
 ]
 description = "Neotropolis project code"
 name = "egnor-neotropolis"
@@ -23,6 +24,7 @@ requires-python = ">=3.12"
 version = "0.0"
 
 [project.scripts]
+emoji_input = "trashbot.emoji_input_cli:main"
 motor = "trashbot.motor_cli:main"
 gamepad = "trashbot.gamepad_cli:main"
 pi_setup = "trashbot.pi_setup_cli:main"
@@ -31,7 +33,7 @@ run_base = "trashbot.run_base:main"
 run_bot = "trashbot.run_bot:main"
 
 [build-system]
-requires = ["uv_build>=0.9.13,<0.10.0"]
+requires = ["uv_build>=0.10.0,<0.11.0"]
 build-backend = "uv_build"
 
 [dependency-groups]

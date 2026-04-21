@@ -31,6 +31,18 @@ def main(bot, base):
             raise click.ClickException("Set --bot or --base")
 
     #
+    # apt packages
+    #
+
+    apt_needed = ["build-essential"]
+    apt_needed.extend(["libusb-1.0-0-dev", "libhidapi-libusb0"] if base else [])
+
+    logging.info("🎁 Checking apt packages...")
+    apt_query = ["dpkg-query", "--show", "--showformat=${Package}\\n"]
+    if apt_missing := set(apt_needed) - set(sub.stdout_lines(*apt_query)):
+        sub.run("sudo", "apt", "install", "-y", *apt_missing)
+
+    #
     # kernel command line arguments
     #
 
@@ -54,7 +66,7 @@ def main(bot, base):
         reboot_required = True
 
     #
-    # Kanshi screen layout config
+    # screen layout config via Kanshi
     # https://gitlab.freedesktop.org/emersion/kanshi
     # Kanshi is started by default on Pi OS (/etc/xdg/labwc/autostart)
     #
@@ -81,7 +93,29 @@ def main(bot, base):
         kanshi_config_path.write_text(kanshi_config)
 
     #
-    # systemd services
+    # sundry system config files
+    #
+
+    config_files: dict[str, str] = {}
+    if base:
+        config_files["/etc/udev/rules.d/10-streamdeck.rules"] = (
+            'SUBSYSTEMS=="usb", ATTRS{idVendor}=="0fd9", '
+            'GROUP="users", TAG+="uaccess"\n'
+        )
+
+    updated: set[str] = set()
+    for path_str, contents in config_files.items():
+        path = pathlib.Path(path_str)
+        logging.info("⚙️ Checking %s", path_str)
+        if not (path.is_file() and path.read_text() == contents):
+            sub.run("sudo", "tee", path, input=contents, encoding="utf8")
+            updated.add(path_str)
+
+    if any(p.startswith("/etc/udev") for p in updated):
+        sub.run("sudo", "udevadm", "control", "--reload-rules")
+
+    #
+    # systemd services (runs last after everything else is set up)
     #
 
     service_name = None
