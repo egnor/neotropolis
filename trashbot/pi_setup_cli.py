@@ -17,18 +17,19 @@ REPO_PATH = pathlib.Path(__file__).parent.parent
 @click.command()
 @click.option("--bot", is_flag=True)
 @click.option("--base", is_flag=True)
-def main(bot, base):
+@click.option("--testbed", is_flag=True)
+def main(bot, base, testbed):
     ok_logging_setup.install()
     sub = ok_subprocess_defaults.SubprocessDefaults()
     reboot_required = False
 
-    if bot and base:
-        raise click.ClickException("Set only one of --bot or --base")
-    if not (bot or base):
+    if (bot + base + testbed) > 1:
+        raise click.ClickException("Set only one of --bot, --base, --testbed")
+    if not (bot or base or testbed):
         node = platform.node().split(".")[0]
         bot, base = (node == "trashbot"), (node == "trashbase")
         if not (bot or base):
-            raise click.ClickException("Set --bot or --base")
+            raise click.ClickException("Set one of --bot, --base, --testbed")
 
     #
     # apt packages
@@ -46,24 +47,26 @@ def main(bot, base):
     # kernel command line arguments
     #
 
-    boot_line_path = pathlib.Path("/boot/firmware/cmdline.txt")
-    logging.info("🥾 Checking boot args: %s", boot_line_path)
-    boot_line = boot_line_path.read_text().strip()
-    arg_rx = re.compile(r'([\w.-]+(?:=("[^"]*")+|=[^"\s]*)?(?![^\s]))\s*|(.)')
-    boot_args = [m[1] for m in re.finditer(arg_rx, boot_line)]
-    if not all(boot_args):
-        ok_logging_setup.exit(f"Can't parse boot args: {boot_args}")
+    if bot or base:
+        boot_line_path = pathlib.Path("/boot/firmware/cmdline.txt")
+        logging.info("🥾 Checking boot args: %s", boot_line_path)
+        boot_line = boot_line_path.read_text().strip()
+        arg_rx = re.compile(r'([\w.-]+(=("[^"]*")+|=[^"\s]*)?(?![^\s]))\s*|(.)')
+        boot_args = [m[1] for m in re.finditer(arg_rx, boot_line)]
+        if not all(boot_args):
+            ok_logging_setup.exit(f"Can't parse boot args: {boot_args}")
 
-    if bot:  # lock down video modes
-        boot_args = [
-            *(a for a in boot_args if not a.startswith("video=")),
-            *["video=HDMI-A-1:1024x768MR@30e", "video=HDMI-A-2:1024x768MR@30e"],
-        ]
+        if bot:  # lock down video modes
+            boot_args = [
+                *(a for a in boot_args if not a.startswith("video=")),
+                *[f"video=HDMI-A-{n}:1024x768MR@30e" for n in (1, 2)],
+            ]
 
-    if (new_boot := " ".join(boot_args)) != boot_line:
-        sub.run("sudo", "tee", boot_line_path, input=new_boot, encoding="utf8")
-        print()  # boot line has no trailing newline
-        reboot_required = True
+        if (new_boot := " ".join(boot_args)) != boot_line:
+            tee_command = ["sudo", "tee", boot_line_path]
+            sub.run(*tee_command, input=new_boot, encoding="utf8")
+            print()  # boot line has no trailing newline
+            reboot_required = True
 
     #
     # screen layout config via Kanshi
@@ -96,22 +99,22 @@ def main(bot, base):
     # sundry system config files
     #
 
-    config_files: dict[str, str] = {}
-    if base:
-        config_files["/etc/udev/rules.d/10-streamdeck.rules"] = (
+    config_files = {
+        "/etc/udev/rules.d/10-streamdeck.rules": (
             'SUBSYSTEMS=="usb", ATTRS{idVendor}=="0fd9", '
             'GROUP="users", TAG+="uaccess"\n'
         )
+    }
 
-    updated: set[str] = set()
+    udev_restart_required = False
     for path_str, contents in config_files.items():
         path = pathlib.Path(path_str)
         logging.info("⚙️ Checking %s", path_str)
         if not (path.is_file() and path.read_text() == contents):
             sub.run("sudo", "tee", path, input=contents, encoding="utf8")
-            updated.add(path_str)
+            udev_restart_required |= path_str.startswith("/etc/udev")
 
-    if any(p.startswith("/etc/udev") for p in updated):
+    if udev_restart_required:
         sub.run("sudo", "udevadm", "control", "--reload-rules")
 
     #
