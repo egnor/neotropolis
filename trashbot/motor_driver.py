@@ -218,13 +218,17 @@ class MotorDriver:
 
         # Interpret motor controller status and error bits
         OError = odrive.enums.ODriveError
-        estop = state == odrive.enums.AxisState.IDLE and not en
         mo.is_active = state == odrive.enums.AxisState.CLOSED_LOOP_CONTROL
-        mo.state = "ESTOP" if estop else odrive.enums.AxisState(state).name
+        mo.state = odrive.enums.AxisState(state).name
         mo.reason = OError(rcode).name if rcode else ""
         mo.errors = {e.name for e in OError(acode)}
         mo.bus_volts = vbus
         mo.motor_amps = ibus
+
+        if state == odrive.enums.AxisState.IDLE and not en:
+            mo.state = "ESTOP"  # emergency stop button pressed
+        elif mo.is_active:
+            mo.state = "RUN"  # more obvious than CLOSED_LOOP_CONTROL
 
         # Copy (and translate) controller diagnostic variables
         flip = -1 if mo.odrive.effective_node_id == 1 else 1
