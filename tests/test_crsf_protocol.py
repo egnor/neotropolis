@@ -235,3 +235,29 @@ def test_channel_signed_fraction_round_trip():
     cf = trashbot.crsf_protocol.channel_from_signed_fraction
     for raw in (172, 500, 992, 1300, 1811):
         assert cf(sf(raw)) == raw
+
+
+# --- Channel <-> rf_code helpers ---
+
+
+def test_rf_code_round_trip_10bit():
+    """Every 10-bit rf_code must round-trip through the CRSF wire format
+    even after the ELRS fullres Div2 `>> 1` / `<< 1` air encoding drops
+    the CRSF LSB — so `channel_from_rf_code` must produce even values."""
+    cr = trashbot.crsf_protocol.channel_from_rf_code
+    rc = trashbot.crsf_protocol.rf_code_from_channel
+    for code in range(1024):
+        raw = cr(code, bits=10)
+        assert raw % 2 == 0, f"code {code} -> odd raw {raw}"
+        # Simulate ELRS fullres air round-trip (LSB dropped, then << 1 back).
+        assert rc((raw >> 1) << 1, bits=10) == code
+
+
+def test_rf_code_regression_low_codes():
+    """Regression: low rf_codes used to alias together because the old scaled
+    encoder produced odd CRSF values whose LSB the air path dropped."""
+    cr = trashbot.crsf_protocol.channel_from_rf_code
+    rc = trashbot.crsf_protocol.rf_code_from_channel
+    for code in (0, 1, 2, 7, 8, 9, 1018, 1023):
+        raw = cr(code, bits=10)
+        assert rc((raw >> 1) << 1, bits=10) == code

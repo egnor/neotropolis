@@ -305,19 +305,23 @@ def channel_from_signed_fraction(frac: float) -> int:
     return min(_CH_MAX, max(_CH_MIN, round((frac - _CH_OFFSET) / _CH_SCALE)))
 
 
-# On the air, ELRS recodes the value to use fewer bits covering only the
-# valid range (0=-100%, max=100%), so only some CRSF values transmit exactly.
+# On the air, ELRS fullres (8ch/12ch/16ch) modes pack analog channels with
+# Decimate11to10_Div2 (`CRSF >> 1`) and unpack with a matching `<< 1`, so the
+# CRSF LSB is dropped in transit. To round-trip an arbitrary rf_code we place
+# it in the high bits, producing only even CRSF values that survive the trip.
+# (Hybrid/Wide mode analog channels use CRSF_to_UINT10/fmap instead, and switch
+# channels use CRSF_to_N — different encodings that we don't support here.)
 
 
 def rf_code_from_channel(raw: int, *, bits: int) -> int:
     """Returns ELRS air value for CRSF wire value"""
-    assert 0 < bits <= 12
-    code_max = (1 << bits) - 1
-    return round((raw - _CH_MIN) * code_max / (_CH_MAX - _CH_MIN))
+    assert 0 < bits <= 11
+    assert 0 <= raw <= 2047
+    return raw >> (11 - bits)
 
 
 def channel_from_rf_code(code: int, *, bits: int) -> int:
     """Returns CRSF wire value for ELRS air value"""
-    assert 0 < bits <= 12
-    code_max = (1 << bits) - 1
-    return _CH_MIN + round(code * (_CH_MAX - _CH_MIN) / code_max)
+    assert 0 < bits <= 11
+    assert 0 <= code < (1 << bits)
+    return code << (11 - bits)

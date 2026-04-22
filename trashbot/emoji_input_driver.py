@@ -41,9 +41,10 @@ class EmojiInputDriver:
     ):
         """Initializes with an streamdeck device and an emoji list"""
 
-        assert dev.is_open()
         self.dev = dev
         self.emojis = emojis
+        if not dev.is_open():
+            dev.open()
 
         self._rows, self._cols = dev.key_layout()
         self._log = logging.getLogger(f"{__name__}[{dev.id()}]")
@@ -103,13 +104,14 @@ class EmojiInputDriver:
         self._update_scroll()
         dev.set_key_callback_async(self._key_callback)  # type: ignore[arg-type]
 
-    def picked_emoji(self) -> trashbot.emoji_list.Emoji | None:
+    def picked_emoji(self) -> trashbot.emoji_list.Emoji:
+        if not self.dev.is_open():
+            self._log.critical("StreamDeck device lost")
+            os._exit(1)
+
         group_index, emoji_index = self._pick_group_emoji
-        if 0 <= group_index < len(self._groups):
-            group = self._groups[group_index]
-            if 0 <= emoji_index < len(group.emojis):
-                return group.emojis[emoji_index]
-        return None
+        group = self._groups[group_index]
+        return group.emojis[emoji_index]
 
     async def _key_callback(self, _dev, key: int, down: bool) -> None:
         # https://github.com/abcminiuser/python-elgato-streamdeck/issues/171
@@ -182,6 +184,7 @@ class EmojiInputDriver:
                 self._log.debug(f"  pick {group.emojis[emoji_index].unicode}")
                 self._update_body_cell(*old_pick)
                 self._update_body_cell(*self._pick_group_emoji)
+                self._log.info(f"{group.emojis[emoji_index].unicode} picked")
 
     def _update_header(self):
         for gi in range(len(self._groups)):

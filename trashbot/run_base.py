@@ -1,5 +1,6 @@
 import asyncclick as click
 import asyncio
+import atexit
 import ok_logging_setup
 import ok_serial
 import logging
@@ -27,15 +28,18 @@ async def main(debug):
     ok_logging_setup.skip_traceback_for(ok_serial.SerialException)
 
     # EMOJI KEYBOARDS
+    emoji_list = trashbot.emoji_list.load()
+    logging.info("🔎 Searching for Stream Decks...")
     streamdeck_manager = StreamDeck.DeviceManager.DeviceManager()
     streamdeck_list = streamdeck_manager.enumerate()
+    # shut down threads before LibUSBHIDAPI.py's atexit to avoid messy crashes
+    atexit.register(lambda: [d.__del__() for d in streamdeck_list])
+
     if (streamdeck_count := len(streamdeck_list)) != 2:
         ok_logging_setup.exit(f"Found {streamdeck_count} StreamDecks (not 2)")
-    streamdeck_list.sort(key=lambda d: d.id())
-    emoji_list = trashbot.emoji_list.load()
     emoji_inputs = [
         trashbot.emoji_input_driver.EmojiInputDriver(d, emoji_list)
-        for d in streamdeck_list
+        for d in sorted(streamdeck_list, key=lambda d: d.id())
     ]
 
     # GAMEPAD
@@ -49,11 +53,11 @@ async def main(debug):
     )
     radio = trashbot.radio_driver.RadioDriver(serial)
 
+    # MAIN LOOP
+    logging.info("🔁 Starting main loop...")
     start_mtime = time.monotonic()
     print_mtime = start_mtime + 0.01
     transmit_mtime = start_mtime
-
-    logging.info("🔁 Starting main loop...")
     command_status = "Ini"
     while True:
         await asyncio.sleep(0.01)
