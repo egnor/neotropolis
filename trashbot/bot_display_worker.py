@@ -23,11 +23,9 @@ REDRAW_EVENT = pygame.event.custom_type()
 
 @click.command()
 @click.option("--debug", is_flag=True)
-@click.option("--force-console/--no-force-console", default=True)
-@click.option("--fullscreen/--no-fullscreen", default=True)
+@click.option("--console/--no-console", default=True)
 @click.option("--screen", type=int, default=0)
-@click.option("--size", type=int, nargs=2, default=(0, 0))
-def main(debug, force_console, fullscreen, screen, size):
+def main(debug, console, screen):
     logging_options = {
         "OK_LOGGING_LEVEL": "debug" if debug else "info",
         "OK_LOGGING_PREFIX": f"screen{screen}> ",
@@ -37,15 +35,15 @@ def main(debug, force_console, fullscreen, screen, size):
 
     logging.info("👁️ Opening bot eye display...")
     os.environ["SDL_NO_SIGNAL_HANDLERS"] = "1"
-    if force_console:
+    if console:
         os.environ["SDL_VIDEODRIVER"] = "wayland"
         os.environ["WAYLAND_DISPLAY"] = "wayland-0"
     pygame.display.init()
-    if force_console and (driver := pygame.display.get_driver()) != "wayland":
-        ok_logging_setup.exit(f'Display driver "{driver}" != "wayland"')
+    if (driver := pygame.display.get_driver()) in ("offscreen", "dummy"):
+        ok_logging_setup.exit(f'Display driver is "{driver}"')
 
-    flags = pygame.FULLSCREEN if fullscreen else 0
-    pygame.display.set_mode(flags=flags, display=screen)
+    flags = pygame.FULLSCREEN if console else 0
+    pygame.display.set_mode((1024, 768), flags=flags, display=screen)
     pygame.display.set_allow_screensaver(False)
     pygame.display.set_caption(f"Trashbot Eye {screen}")
     pygame.mouse.set_visible(False)

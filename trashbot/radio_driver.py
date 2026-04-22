@@ -1,4 +1,4 @@
-# Driver for ELRS radio attached to serial port
+"""Driver for ELRS radio attached to serial port"""
 
 import construct
 import ok_serial

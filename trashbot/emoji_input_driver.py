@@ -1,4 +1,4 @@
-"""Use a StreamDeck XL as an emoji keyboard."""
+"""Driver for a StreamDeck XL as an emoji keyboard"""
 
 import dataclasses
 import importlib.resources

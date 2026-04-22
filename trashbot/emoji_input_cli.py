@@ -14,10 +14,7 @@ import trashbot.emoji_list
 @click.option("--debug", is_flag=True)
 @click.option("--id", default=None)
 async def main(debug, id):
-    ok_logging_options = {
-        "OK_LOGGING_LEVEL": "debug" if debug else "info",
-        "OK_LOGGING_REPEAT_PER_MINUTE": 100,  # we repeat status a lot
-    }
+    ok_logging_options = {"OK_LOGGING_LEVEL": "debug" if debug else "info"}
     ok_logging_setup.install(ok_logging_options)
     ok_logging_setup.install_asyncio_handler()
 

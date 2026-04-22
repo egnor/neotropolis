@@ -24,8 +24,6 @@ async def main(debug):
     }
     ok_logging_setup.install(ok_logging_options)
     ok_logging_setup.install_asyncio_handler()
-    ok_logging_setup.skip_traceback_for(trashbot.gamepad_driver.GamepadError)
-    ok_logging_setup.skip_traceback_for(ok_serial.SerialException)
 
     # EMOJI KEYBOARDS
     emoji_list = trashbot.emoji_list.load()
