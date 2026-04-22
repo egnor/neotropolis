@@ -4,7 +4,6 @@
 (This is a subprocess because pygame only drives one display at a time.)"""
 
 import asyncclick as click
-import dataclasses
 import importlib
 import json
 import logging
@@ -15,14 +14,6 @@ import sys
 import threading
 import trashbot.emoji_list
 import trashbot.resources
-
-
-@dataclasses.dataclass
-class DisplayContext:
-    caption_font: pygame.font.Font
-    request_line: str
-    rfcode_emoji: dict[int, trashbot.emoji_list.Emoji]
-    temp_square: pygame.Surface
 
 
 STDIN_LINE_EVENT = pygame.event.custom_type()
@@ -44,7 +35,7 @@ def main(debug, force_console, fullscreen, screen, size):
     ok_logging_setup.install(logging_options)
     ok_logging_setup.skip_traceback_for(pygame.error)
 
-    logging.info("👁️ Opening eye display...")
+    logging.info("👁️ Opening bot eye display...")
     os.environ["SDL_NO_SIGNAL_HANDLERS"] = "1"
     if force_console:
         os.environ["SDL_VIDEODRIVER"] = "wayland"
@@ -63,29 +54,22 @@ def main(debug, force_console, fullscreen, screen, size):
     (width, height), bpp = surface.get_size(), surface.get_bitsize()
     logging.info(f"🖥️ Opened screen {screen} at {width}x{height} {bpp}bpp")
 
+    pygame.font.init()
     resource_files = importlib.resources.files(trashbot.resources)
     font_ref = resource_files / "NorwesterPro-Square.otf"
-    pygame.font.init()
     with importlib.resources.as_file(font_ref) as font_path:
-        logging.info("🔠 Loading %s", font_path.name)
+        logging.debug("loading %s", font_path.name)
         caption_font = pygame.font.Font(font_path, 70)
-
-    rfcode_emoji = {e.rf_code: e for e in trashbot.emoji_list.load()}
 
     min_dim = min(width, height)
     temp_square = pygame.Surface((min_dim, min_dim), flags=pygame.SRCALPHA)
-
-    context = DisplayContext(
-        caption_font=caption_font,
-        request_line="",
-        rfcode_emoji=rfcode_emoji,
-        temp_square=temp_square,
-    )
+    rfcode_emoji = {e.rf_code: e for e in trashbot.emoji_list.load()}
 
     threading.Thread(target=stdin_reader_thread, daemon=True).start()
     logging.debug("sending ready message")
     sys.stdout.write('{"ready":true}\n')
     redraw_pending = False
+    req_line = ""
     while True:
         ev = pygame.event.wait()
         if ev.type == pygame.QUIT:
@@ -96,14 +80,14 @@ def main(debug, force_console, fullscreen, screen, size):
             if ev.text is None:
                 logging.info("❌ EOF from stdin, stopping")
                 break
-            elif ev.text != context.request_line:  # de-dup and debounce redraw
-                context.request_line = ev.text
+            elif ev.text != req_line:  # de-dup and debounce redraw
+                req_line = ev.text
                 if not redraw_pending:
                     pygame.time.set_timer(REDRAW_EVENT, 20, loops=1)
                     redraw_pending = True
 
         elif ev.type == REDRAW_EVENT:
-            redraw_display(context)
+            redraw_display(caption_font, req_line, rfcode_emoji, temp_square)
             redraw_pending = False
 
 
@@ -117,8 +101,13 @@ def stdin_reader_thread():
     pygame.event.post(pygame.event.Event(STDIN_LINE_EVENT, text=None))  # EOF
 
 
-def redraw_display(context: DisplayContext):
-    request = json.loads(context.request_line)
+def redraw_display(
+    caption_font: pygame.font.Font,
+    request_line: str,
+    rfcode_emoji: dict[int, trashbot.emoji_list.Emoji],
+    temp_square: pygame.Surface,
+):
+    request = json.loads(request_line)
     if not isinstance(request, dict):
         raise TypeError("Bad request line type: %s", type(request))
 
@@ -129,21 +118,20 @@ def redraw_display(context: DisplayContext):
     scr_w, scr_h = screen.get_size()
 
     rf_code = int(request.pop("rf_code", 0)) or None
-    if rf_code and (emoji := context.rfcode_emoji.get(rf_code)):
-        tsq = context.temp_square
-        tsq_w, tsq_h = tsq.get_size()
+    if rf_code and (emoji := rfcode_emoji.get(rf_code)):
+        tsq_w, tsq_h = temp_square.get_size()
         tsq_pos = ((scr_w - tsq_w) // 2, (scr_h - tsq_h) // 2)
-        pygame.transform.scale(emoji.image, (tsq_w, tsq_h), dest_surface=tsq)
-        screen.blit(tsq, tsq_pos)
+        pygame.transform.scale(emoji.image, (tsq_w, tsq_h), temp_square)
+        screen.blit(temp_square, tsq_pos)
 
     caption_text = request.pop("caption", "")
     if caption_text:
-        cap = context.caption_font.render(caption_text, True, (255, 255, 255))
-        cap_w, cap_h = cap.get_size()
+        cap_im = caption_font.render(caption_text, True, (255, 255, 255))
+        cap_w, cap_h = cap_im.get_size()
         cap_x, cap_y = (scr_w - cap_w) // 2, scr_h - cap_h
         cap_rect = pygame.Rect(0, cap_y, scr_w, cap_h)
         screen.fill((64, 64, 64), cap_rect, pygame.BLEND_MULT)
-        screen.blit(cap, (cap_x, cap_y))
+        screen.blit(cap_im, (cap_x, cap_y))
 
     pygame.display.flip()
 

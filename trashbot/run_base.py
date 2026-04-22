@@ -3,9 +3,12 @@ import asyncio
 import ok_logging_setup
 import ok_serial
 import logging
+import StreamDeck.DeviceManager
 import time
 
 import trashbot.crsf_protocol
+import trashbot.emoji_input_driver
+import trashbot.emoji_list
 import trashbot.gamepad_driver
 import trashbot.radio_driver
 
@@ -19,17 +22,32 @@ async def main(debug):
         "OK_LOGGING_TIME_FORMAT": "%H:%M:%S",
     }
     ok_logging_setup.install(ok_logging_options)
+    ok_logging_setup.install_asyncio_handler()
     ok_logging_setup.skip_traceback_for(trashbot.gamepad_driver.GamepadError)
     ok_logging_setup.skip_traceback_for(ok_serial.SerialException)
 
-    gdriver = trashbot.gamepad_driver.connect()
+    # EMOJI KEYBOARDS
+    streamdeck_manager = StreamDeck.DeviceManager.DeviceManager()
+    streamdeck_list = streamdeck_manager.enumerate()
+    if (streamdeck_count := len(streamdeck_list)) != 2:
+        ok_logging_setup.exit(f"Found {streamdeck_count} StreamDecks (not 2)")
+    streamdeck_list.sort(key=lambda d: d.id())
+    emoji_list = trashbot.emoji_list.load()
+    emoji_inputs = [
+        trashbot.emoji_input_driver.EmojiInputDriver(d, emoji_list)
+        for d in streamdeck_list
+    ]
 
+    # GAMEPAD
+    gamepad = trashbot.gamepad_driver.connect()
+
+    # RADIO
     logging.info("📻 Connecting to radio...")
     serial = ok_serial.SerialConnection(
         match=trashbot.radio_driver.BASE_PORT,
         baud=trashbot.radio_driver.BASE_BAUD,
     )
-    rdriver = trashbot.radio_driver.RadioDriver(serial)
+    radio = trashbot.radio_driver.RadioDriver(serial)
 
     start_mtime = time.monotonic()
     print_mtime = start_mtime + 0.01
@@ -39,27 +57,28 @@ async def main(debug):
     command_status = "Ini"
     while True:
         await asyncio.sleep(0.01)
-        while gdriver.poll_event():
+        while gamepad.poll_event():
             pass
-        while rdriver.poll_frame():
+        while radio.poll_frame():
             pass
 
         mtime = time.monotonic()
         if mtime >= print_mtime:
             print_mtime += 1.0
-            rx_mode = rdriver.recent.get("FlightMode")
+            rx_mode = radio.recent.get("FlightMode")
             rx_text = "RX " + (rx_mode.flight_mode if rx_mode else "N/A")
             logging.info("\nTRASHBASE: command %s; %s", command_status, rx_text)
-            logging.info("📻 %s", rdriver.debug_str())
-            rdriver.counts.clear()
+            logging.info("📻 %s", radio.debug_str())
+            radio.counts.clear()
 
         if mtime >= transmit_mtime:
             transmit_mtime += 0.01
             command_status = transmit_command(
                 mtime=mtime,
                 prev_status=command_status,
-                gdriver=gdriver,
-                rdriver=rdriver,
+                emoji_inputs=emoji_inputs,
+                gamepad=gamepad,
+                radio=radio,
             )
 
 
@@ -67,14 +86,15 @@ def transmit_command(
     *,
     mtime: float,
     prev_status: str,
-    gdriver: trashbot.gamepad_driver.GamepadDriver,
-    rdriver: trashbot.radio_driver.RadioDriver,
+    emoji_inputs: list[trashbot.emoji_input_driver.EmojiInputDriver],
+    gamepad: trashbot.gamepad_driver.GamepadDriver,
+    radio: trashbot.radio_driver.RadioDriver,
 ):
     from_frac = trashbot.crsf_protocol.channel_from_signed_fraction
     channels = [from_frac(0)] * 16
     channels[4] = from_frac(1)  # armed
 
-    rx_mode = rdriver.recent.get("FlightMode")
+    rx_mode = radio.recent.get("FlightMode")
     rx_word = rx_mode.flight_mode.split()[0] if rx_mode else ""
 
     if not rx_word:
@@ -86,11 +106,11 @@ def transmit_command(
     elif rx_word != "OK":
         # zero motion (but arm) when RX is not OK
         command_status = "RX!OK"
-    elif (left_y := gdriver.recent.get("LY")) is None:
+    elif (left_y := gamepad.recent.get("LY")) is None:
         command_status = "!LY"
-    elif (right_x := gdriver.recent.get("RX")) is None:
+    elif (right_x := gamepad.recent.get("RX")) is None:
         command_status = "!RX"
-    elif not any(gdriver.recent.get(b) for b in ("LB", "LT", "RB", "RT")):
+    elif not any(gamepad.recent.get(b) for b in ("LB", "LT", "RB", "RT")):
         command_status = "!Trig"  # zero motion (but arm) without trigger
     elif prev_status != "OK" and left_y > 0.05:
         command_status = "LY+"
@@ -107,11 +127,14 @@ def transmit_command(
         channels[0] = from_frac(rotate)
         channels[2] = from_frac(throttle)
 
-    from_code = trashbot.crsf_protocol.channel_from_rf_code
-    channels[1] = from_code(100, bits=10)
-    channels[3] = from_code(100, bits=10)
+    assert len(emoji_inputs) == 2
+    for input, ch in zip(emoji_inputs, (1, 3)):
+        emoji = input.picked_emoji()
+        rf_code = emoji.rf_code if emoji else 0
+        ch_code = trashbot.crsf_protocol.channel_from_rf_code(rf_code, bits=10)
+        channels[ch] = ch_code
 
-    rdriver.send_frame(type="RCChannelsPacked", channels=channels)
+    radio.send_frame(type="RCChannelsPacked", channels=channels)
     return command_status
 
 

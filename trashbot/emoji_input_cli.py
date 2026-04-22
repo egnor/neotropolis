@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import asyncclick as click
+import asyncio
 import logging
 import ok_logging_setup
 import StreamDeck.DeviceManager
@@ -12,8 +13,13 @@ import trashbot.emoji_list
 @click.command()
 @click.option("--debug", is_flag=True)
 @click.option("--id", default=None)
-def main(debug, id):
-    ok_logging_setup.install({"OK_LOGGING_LEVEL": "debug" if debug else "info"})
+async def main(debug, id):
+    ok_logging_options = {
+        "OK_LOGGING_LEVEL": "debug" if debug else "info",
+        "OK_LOGGING_REPEAT_PER_MINUTE": 100,  # we repeat status a lot
+    }
+    ok_logging_setup.install(ok_logging_options)
+    ok_logging_setup.install_asyncio_handler()
 
     logging.info("🔎 Looking for StreamDeck devices...")
     device_manager = StreamDeck.DeviceManager.DeviceManager()
@@ -22,7 +28,7 @@ def main(debug, id):
         ok_logging_setup.exit("No StreamDeck devices found")
     logging.info(
         f"🎛️ {len(device_list)} StreamDeck(s) found"
-        + "".join(f"\n  {d.id():<15} {d.deck_type()}" for d in device_list)
+        + "".join(f"\n  {d.id():<10} {d.deck_type()}" for d in device_list)
     )
 
     if len(device_list) == 1 and not id:
@@ -37,11 +43,12 @@ def main(debug, id):
     try:
         device.open()
         emojis = trashbot.emoji_list.load()
-        emoji_input = trashbot.emoji_input_driver.EmojiInputDriver(
-            device, emojis
-        )
+        edriver = trashbot.emoji_input_driver.EmojiInputDriver(device, emojis)
 
-        emoji_input
+        logging.info("⏳ Waiting for input...")
+        while True:
+            await asyncio.sleep(0.05)
+            edriver
 
     finally:
         device.close()

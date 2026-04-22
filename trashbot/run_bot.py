@@ -22,6 +22,7 @@ async def main(debug):
         "OK_LOGGING_TIME_FORMAT": "%H:%M:%S",
     }
     ok_logging_setup.install(ok_logging_options)
+    ok_logging_setup.install_asyncio_handler()
     ok_logging_setup.skip_traceback_for(ok_serial.SerialException)
     ok_logging_setup.skip_traceback_for(trashbot.motor_driver.MotorError)
 
