@@ -40,12 +40,12 @@ async def main(debug, id):
     try:
         device.open()
         emojis = trashbot.emoji_list.load()
-        edriver = trashbot.emoji_input_driver.EmojiInputDriver(device, emojis)
+        driver = trashbot.emoji_input_driver.EmojiInputDriver(device, emojis)
 
         logging.info("⏳ Waiting for input...")
         while True:
             await asyncio.sleep(0.05)
-            edriver
+            driver
 
     finally:
         device.close()

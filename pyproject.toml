@@ -24,6 +24,8 @@ requires-python = ">=3.12"
 version = "0.0"
 
 [project.scripts]
+base_display = "trashbot.base_display_cli:main"
+bot_display = "trashbot.bot_display_worker:main"
 emoji_input = "trashbot.emoji_input_cli:main"
 motor = "trashbot.motor_cli:main"
 gamepad = "trashbot.gamepad_cli:main"

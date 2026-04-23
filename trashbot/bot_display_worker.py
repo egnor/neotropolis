@@ -68,8 +68,7 @@ def main(debug, console, screen):
     sys.stdout.write('{"ready":true}\n')
     redraw_pending = False
     req_line = ""
-    while True:
-        ev = pygame.event.wait()
+    while ev := pygame.event.wait():
         if ev.type == pygame.QUIT:
             logging.info("❌ QUIT event received, stopping")
             break
