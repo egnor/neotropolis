@@ -38,9 +38,9 @@ class BaseDisplayDriver:
             _log.debug("loading %s ...", image_filename)
             self._base_image = pygame.image.load(f, namehint=image_filename)
 
-        self._request = {}
+        self._request = {"init": False}
 
-    def run_display(self, request: dict):
+    def run_display(self, req: dict):
         """Runs the pygame event loop and updates the display if needed"""
 
         for ev in pygame.event.get():
@@ -48,7 +48,19 @@ class BaseDisplayDriver:
                 logging.info("❌ QUIT event received, stopping")
                 raise SystemExit()
 
-        if request == self._request:
+        if req == self._request:
             return
 
-        self._request = request
+        rf_codes = [int(v) for v in list(req.pop("rf_codes", [0, 0]))]
+        vars = {str(k): str(v) for k, v in dict(req.pop("vars", {})).items()}
+        if req:
+            raise ValueError(f"Leftover request fields: {req!r}")
+
+        screen = pygame.display.get_surface()
+        screen.fill((0, 0, 0))
+
+        (w, h), (bw, bh) = screen.get_size(), self._base_image.get_size()
+        screen.blit(self._base_image, ((w - bw) // 2, (h - bh) // 2))
+
+        pygame.display.flip()
+        self._request = {**req}

@@ -63,7 +63,7 @@ def main(debug, console, screen):
     temp_square = pygame.Surface((min_dim, min_dim), flags=pygame.SRCALPHA)
     rfcode_emoji = {e.rf_code: e for e in trashbot.emoji_list.load()}
 
-    threading.Thread(target=stdin_reader_thread, daemon=True).start()
+    threading.Thread(target=stdin_thread, daemon=True).start()
     logging.debug("sending ready message")
     sys.stdout.write('{"ready":true}\n')
     redraw_pending = False
@@ -88,13 +88,13 @@ def main(debug, console, screen):
             redraw_pending = False
 
 
-def stdin_reader_thread():
+def stdin_thread():
     logging.debug("stdin reader thread starting...")
     for line in sys.stdin:
         logging.debug("stdin: %r", line)
         pygame.event.post(pygame.event.Event(STDIN_LINE_EVENT, text=line))
 
-    logging.debug("stdin reader reporting EOF")
+    logging.debug("stdin EOF")
     pygame.event.post(pygame.event.Event(STDIN_LINE_EVENT, text=None))  # EOF
 
 
@@ -104,9 +104,9 @@ def redraw_display(
     rfcode_emoji: dict[int, trashbot.emoji_list.Emoji],
     temp_square: pygame.Surface,
 ):
-    request = json.loads(request_line)
-    if not isinstance(request, dict):
-        raise TypeError("Bad request line type: %s", type(request))
+    req = json.loads(request_line)
+    if not isinstance(req, dict):
+        raise TypeError("Bad request line type: %s", type(req))
 
     if not (screen := pygame.display.get_surface()):
         raise ValueError("No pygame display surface")
@@ -114,15 +114,14 @@ def redraw_display(
     screen.fill((0, 0, 0))
     scr_w, scr_h = screen.get_size()
 
-    rf_code = int(request.pop("rf_code", 0)) or None
-    if rf_code and (emoji := rfcode_emoji.get(rf_code)):
+    rf_code = int(req.pop("rf_code", 0))
+    if emoji := rfcode_emoji.get(rf_code):
         tsq_w, tsq_h = temp_square.get_size()
         tsq_pos = ((scr_w - tsq_w) // 2, (scr_h - tsq_h) // 2)
         pygame.transform.scale(emoji.image, (tsq_w, tsq_h), temp_square)
         screen.blit(temp_square, tsq_pos)
 
-    caption_text = request.pop("caption", "")
-    if caption_text:
+    if caption_text := str(req.pop("caption", "")):
         cap_im = caption_font.render(caption_text, True, (255, 255, 255))
         cap_w, cap_h = cap_im.get_size()
         cap_x, cap_y = (scr_w - cap_w) // 2, scr_h - cap_h
@@ -132,8 +131,8 @@ def redraw_display(
 
     pygame.display.flip()
 
-    if request:
-        raise ValueError("Leftover request fields: %s", request)
+    if req:
+        raise ValueError(f"Leftover request fields: {req!r}")
 
 
 if __name__ == "__main__":
