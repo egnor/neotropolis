@@ -18,7 +18,7 @@ REPO_PATH = Path(__file__).parent.parent
 @click.option("--base", is_flag=True)
 @click.option("--bot", is_flag=True)
 @click.option("--desk", is_flag=True)
-def main(base, bot, desk):
+def main(base: bool, bot: bool, desk: bool) -> None:
     ok_logging_setup.install()
     sub = ok_subprocess_defaults.SubprocessDefaults()
 
@@ -73,12 +73,21 @@ def main(base, bot, desk):
     # sundry system config files
     #
 
-    config_files = {
-        Path("/etc/udev/rules.d/10-streamdeck.rules"): (
-            'SUBSYSTEMS=="usb", ATTRS{idVendor}=="0fd9", '
-            'GROUP="users", TAG+="uaccess"\n'
-        )
-    }
+    config_files: dict[Path, str] = {}
+
+    # udev rule for StreamDeck
+    config_files[Path("/etc/udev/rules.d/10-streamdeck.rules")] = (
+        'SUBSYSTEMS=="usb", ATTRS{idVendor}=="0fd9",'
+        ' GROUP="users", TAG+="uaccess"\n'
+    )
+
+    # udev rule for ODrive
+    config_files[Path("/etc/udev/rules.d/91-odrive.rules")] = (
+        'SUBSYSTEM=="usb", ATTR{idVendor}=="1209", ATTR{idProduct}=="0d3[0-9]",'
+        ' MODE="0666", ENV{ID_MM_DEVICE_IGNORE}="1"\n'
+        'SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="df11",'
+        ' MODE="0666"\n'
+    )
 
     if bot:
         # Kanshi is started by default on Pi OS (/etc/xdg/labwc/autostart)
