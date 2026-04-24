@@ -15,20 +15,20 @@ REPO_PATH = Path(__file__).parent.parent
 
 
 @click.command()
-@click.option("--bot", is_flag=True)
 @click.option("--base", is_flag=True)
+@click.option("--bot", is_flag=True)
 @click.option("--desk", is_flag=True)
-def main(bot, base, desk):
+def main(base, bot, desk):
     ok_logging_setup.install()
     sub = ok_subprocess_defaults.SubprocessDefaults()
 
-    if (bot + base + desk) > 1:
-        raise click.ClickException("Set only one of --bot, --base, --desk")
-    if not (bot or base or desk):
+    if (base + bot + desk) > 1:
+        raise click.ClickException("Set only one of --base, --bot, or --desk")
+    if not (base or bot or desk):
         node = platform.node().split(".")[0]
-        bot, base = (node == "trashbot"), (node == "trashbase")
-        if not (bot or base):
-            raise click.ClickException("Set one of --bot, --base, --desk")
+        base, bot = (node == "trashbase"), (node == "trashbot")
+        if not (base or bot):
+            raise click.ClickException("Set one of --base, --bot, or --desk")
 
     reboot_required = False
 
@@ -48,7 +48,7 @@ def main(bot, base, desk):
     # kernel command line arguments
     #
 
-    if bot or base:
+    if base or bot:
         boot_line_path = Path("/boot/firmware/cmdline.txt")
         logging.info("🥾 Checking boot args: %s", boot_line_path)
         boot_line = boot_line_path.read_text().strip()
@@ -117,9 +117,12 @@ def main(bot, base, desk):
     # compositor there's no display to drive anyway.
     #
 
-    service_name = None
-    if bot:
+    if base:
+        service_name = "trashbase.service"
+    elif bot:
         service_name = "trashbot.service"
+    else:
+        service_name = None
 
     if service_name:
         source_unit_path = REPO_PATH / service_name

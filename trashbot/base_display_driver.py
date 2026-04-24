@@ -32,12 +32,19 @@ class BaseDisplayDriver:
         (width, height), bpp = surface.get_size(), surface.get_bitsize()
         _log.info(f"🖥️ Opened display at {width}x{height} {bpp}bpp")
 
-        image_filename = "base_display.png"
         resource_files = importlib.resources.files(trashbot.resources)
-        with (resource_files / image_filename).open("rb") as f:
-            _log.debug("loading %s ...", image_filename)
-            self._base_image = pygame.image.load(f, namehint=image_filename)
+        image_ref = resource_files / "base_display.png"
+        with image_ref.open("rb") as f:
+            _log.debug("loading %s", image_ref.name)
+            self._base_image = pygame.image.load(f, namehint=image_ref.name)
 
+        pygame.font.init()
+        font_ref = resource_files / "NorwesterPro-Square.otf"
+        with importlib.resources.as_file(font_ref) as font_path:
+            logging.debug("loading %s", font_path.name)
+            self._vars_font = pygame.font.Font(font_path, 55)
+
+        self._rf_emojis = {e.rf_code: e for e in emojis}
         self._request = {"init": False}
 
     def run_display(self, req: dict):
@@ -56,11 +63,31 @@ class BaseDisplayDriver:
         if req:
             raise ValueError(f"Leftover request fields: {req!r}")
 
+        # black background
         screen = pygame.display.get_surface()
         screen.fill((0, 0, 0))
 
+        # emoji layer
+        emos = [self._rf_emojis.get(rf) for rf in rf_codes] + [None, None]
+        if emo_a := emos[1]:  # order is reversed for front view
+            emo_xf = pygame.transform.rotozoom(emo_a.image, 10, 5)
+            ew, eh = emo_xf.get_size()
+            screen.blit(emo_xf, (1006 - ew // 2, 434 - eh // 2))
+        if emo_b := emos[0]:
+            emo_xf = pygame.transform.rotozoom(emo_b.image, -10, 5)
+            ew, eh = emo_xf.get_size()
+            screen.blit(emo_xf, (1313 - ew // 2, 434 - eh // 2))
+
+        # static image overlay
         (w, h), (bw, bh) = screen.get_size(), self._base_image.get_size()
         screen.blit(self._base_image, ((w - bw) // 2, (h - bh) // 2))
+
+        # telemetry variables
+        for i, (name, value) in enumerate(vars.items()):
+            name_im = self._vars_font.render(name, True, (192, 192, 192))
+            value_im = self._vars_font.render(value, True, (255, 204, 0))
+            screen.blit(name_im, (1550, 350 + i * 60))
+            screen.blit(value_im, (1725, 350 + i * 60))
 
         pygame.display.flip()
         self._request = {**req}

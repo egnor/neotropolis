@@ -7,6 +7,7 @@ import logging
 import StreamDeck.DeviceManager
 import time
 
+import trashbot.base_display_driver
 import trashbot.crsf_protocol
 import trashbot.emoji_input_driver
 import trashbot.emoji_list
@@ -24,9 +25,12 @@ async def main(debug):
     }
     ok_logging_setup.install(ok_logging_options)
     ok_logging_setup.install_asyncio_handler()
+    emoji_list = trashbot.emoji_list.load()
+
+    # DISPLAY
+    display = trashbot.base_display_driver.BaseDisplayDriver(emoji_list)
 
     # EMOJI KEYBOARDS
-    emoji_list = trashbot.emoji_list.load()
     logging.info("🔎 Searching for Stream Decks...")
     streamdeck_manager = StreamDeck.DeviceManager.DeviceManager()
     streamdeck_list = streamdeck_manager.enumerate()
@@ -83,6 +87,14 @@ async def main(debug):
                 radio=radio,
             )
 
+        update_display(
+            mtime=mtime,
+            command_status=command_status,
+            display=display,
+            emoji_inputs=emoji_inputs,
+            radio=radio,
+        )
+
 
 def transmit_command(
     *,
@@ -138,6 +150,44 @@ def transmit_command(
 
     radio.send_frame(type="RCChannelsPacked", channels=channels)
     return command_status
+
+
+def update_display(
+    *,
+    mtime: float,
+    command_status: str,
+    display: trashbot.base_display_driver.BaseDisplayDriver,
+    emoji_inputs: list[trashbot.emoji_input_driver.EmojiInputDriver],
+    radio: trashbot.radio_driver.RadioDriver,
+):
+    batt_sens = radio.recent.get("BatterySensor")
+    flight_mode = radio.recent.get("FlightMode")
+    link_stat = radio.recent.get("LinkStatistics")
+
+    def value(message, key, suffix=""):
+        if message and (out := message.get(key)) is not None:
+            stale = "~" if message.mtime < mtime - 2.0 else ""
+            return stale + str(out) + suffix
+        else:
+            return "-"
+
+    display_request = {
+        "rf_codes": [ei.picked_emoji().rf_code for ei in emoji_inputs],
+        "vars": {
+            "CMD": command_status or "-",
+            "BOT": value(flight_mode, "flight_mode"),
+            "BAT": value(batt_sens, "voltage_v", "V"),
+            "MOT": value(batt_sens, "current_a", "A"),
+            "BAS.A": value(link_stat, "down_rssi_ant1_dbm", "dB"),
+            "BAS.P": value(link_stat, "down_link_quality", "%"),
+            "BAS.S": value(link_stat, "down_snr", "dB"),
+            "BOT.A1": value(link_stat, "up_rssi_ant1_dbm", "dB"),
+            "BOT.A2": value(link_stat, "up_rssi_ant2_dbm", "dB"),
+            "BOT.P": value(link_stat, "up_link_quality", "%"),
+            "BOT.S": value(link_stat, "up_snr", "dB"),
+        },
+    }
+    display.run_display(display_request)
 
 
 if __name__ == "__main__":

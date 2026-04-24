@@ -1,0 +1,11 @@
+[Unit]
+Description=Trashbot driving
+
+[Service]
+WorkingDirectory=/home/pi/neotropolis
+ExecStart=/home/pi/.local/bin/mise exec -- run_base
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
