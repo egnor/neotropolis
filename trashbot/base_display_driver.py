@@ -83,11 +83,14 @@ class BaseDisplayDriver:
         screen.blit(self._base_image, ((w - bw) // 2, (h - bh) // 2))
 
         # telemetry variables
-        for i, (name, value) in enumerate(vars.items()):
+        for i, (name, val) in enumerate(vars.items()):
             name_im = self._vars_font.render(name, True, (192, 192, 192))
-            value_im = self._vars_font.render(value, True, (255, 204, 0))
+            if val.startswith("~"):
+                val_im = self._vars_font.render(val[1:], True, (128, 128, 128))
+            else:
+                val_im = self._vars_font.render(val, True, (255, 204, 0))
             screen.blit(name_im, (1550, 350 + i * 60))
-            screen.blit(value_im, (1725, 350 + i * 60))
+            screen.blit(val_im, (1725, 350 + i * 60))
 
         pygame.display.flip()
         self._request = {**req}
