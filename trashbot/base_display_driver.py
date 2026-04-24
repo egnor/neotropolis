@@ -65,6 +65,7 @@ class BaseDisplayDriver:
 
         # black background
         screen = pygame.display.get_surface()
+        assert screen is not None
         screen.fill((0, 0, 0))
 
         # emoji layer
