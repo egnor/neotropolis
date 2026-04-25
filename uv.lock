@@ -393,6 +393,7 @@ dependencies = [
     { name = "ok-logging-setup" },
     { name = "ok-serial", extra = ["cli"] },
     { name = "ok-subprocess-defaults" },
+    { name = "pi5neo" },
     { name = "pygame-ce" },
     { name = "pysdl3" },
     { name = "pyserial" },
@@ -422,6 +423,7 @@ requires-dist = [
     { name = "ok-logging-setup", specifier = ">=0.13" },
     { name = "ok-serial", extras = ["cli"], specifier = ">=0.3.1" },
     { name = "ok-subprocess-defaults", specifier = ">=0.2" },
+    { name = "pi5neo", specifier = ">=1.1.0" },
     { name = "pygame-ce", specifier = ">=2.5.7" },
     { name = "pysdl3", specifier = ">=0.9.11b0" },
     { name = "pyserial", specifier = ">=3.5" },
@@ -1227,6 +1229,18 @@ wheels = [
 ]
 
 [[package]]
+name = "pi5neo"
+version = "1.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "spidev" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b3/0f/c0e3711de10c1f0188e4d12eeadfba8d889563bce4b592f04dac6ec567e8/pi5neo-1.1.0.tar.gz", hash = "sha256:9ef7bf385f7ae4f073930d6e9739d5ab2713a51c219fd0e1ab4a35858707f3f4", size = 12245, upload-time = "2026-03-23T21:08:55.053Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f5/0c/34212088e2026d899a146f3f0df3f5cf877b6ff3929c32cd27a0ff641d51/pi5neo-1.1.0-py3-none-any.whl", hash = "sha256:5150a19d72a7a02a416259c5f60b3b218960d53d737dd4f936ba037e5008e241", size = 20288, upload-time = "2026-03-23T21:08:54.18Z" },
+]
+
+[[package]]
 name = "pillow"
 version = "12.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1621,6 +1635,12 @@ sdist = { url = "https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274", size = 11050, upload-time = "2024-12-04T17:35:26.475Z" },
 ]
+
+[[package]]
+name = "spidev"
+version = "3.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/67/87/039b6eeea781598015b538691bc174cc0bf77df9d4d2d3b8bf9245c0de8c/spidev-3.8.tar.gz", hash = "sha256:2bc02fb8c6312d519ebf1f4331067427c0921d3f77b8bcaf05189a2e8b8382c0", size = 13893, upload-time = "2025-09-15T18:56:20.672Z" }
 
 [[package]]
 name = "stack-data"

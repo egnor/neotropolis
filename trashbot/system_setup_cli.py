@@ -30,16 +30,15 @@ def main(base: bool, bot: bool, desk: bool) -> None:
         if not (base or bot):
             raise click.ClickException("Set one of --base, --bot, or --desk")
 
+    config_files: dict[Path, str] = {}
     reboot_required = False
 
     #
     # apt packages
     #
 
-    apt_needed = ["build-essential", "libusb-1.0-0-dev", "libhidapi-libusb0"]
-    udev_restart_required = False
-
     logging.info("🎁 Checking apt packages...")
+    apt_needed = ["build-essential", "libusb-1.0-0-dev", "libhidapi-libusb0"]
     apt_query = ["dpkg-query", "--show", "--showformat=${Package}\\n"]
     if apt_missing := set(apt_needed) - set(sub.stdout_lines(*apt_query)):
         sub.run("sudo", "apt", "install", "-y", *apt_missing)
@@ -50,7 +49,6 @@ def main(base: bool, bot: bool, desk: bool) -> None:
 
     if base or bot:
         boot_line_path = Path("/boot/firmware/cmdline.txt")
-        logging.info("🥾 Checking boot args: %s", boot_line_path)
         boot_line = boot_line_path.read_text().strip()
         arg_rx = re.compile(r'([\w.-]+(=("[^"]*")+|=[^"\s]*)?(?![^\s]))\s*|(.)')
         boot_args = [m[1] for m in re.finditer(arg_rx, boot_line)]
@@ -63,17 +61,51 @@ def main(base: bool, bot: bool, desk: bool) -> None:
                 *[f"video=HDMI-A-{n}:1024x768MR@30e" for n in (1, 2)],
             ]
 
-        if (new_boot := " ".join(boot_args)) != boot_line:
-            tee_command = ["sudo", "tee", boot_line_path]
-            sub.run(*tee_command, input=new_boot, encoding="utf8")
-            print()  # boot line has no trailing newline
-            reboot_required = True
+        new_boot = " ".join(boot_args)
+        config_files[boot_line_path] = new_boot = " ".join(boot_args)
 
     #
-    # sundry system config files
+    # /boot/firmware/config.txt managed block
     #
 
-    config_files: dict[Path, str] = {}
+    config_add = ""
+    if bot:
+        config_add += textwrap.dedent("""
+            # SPI0 for WS281x addressable LED strip (/dev/spidev0.0, GPIO 10)
+            dtparam=spi=on
+            # UART0 on GPIO 14/15 for ELRS RX (requires disabling Bluetooth)
+            dtoverlay=disable-bt
+            dtoverlay=uart0-pi5
+        """).lstrip()
+
+    if bot or base:
+        config_add += textwrap.dedent("""
+            # Lift USB port current limit (for powered peripherals)
+            usb_max_current_enable=1
+        """).lstrip()
+
+    if config_add:
+        tag = "trashbot" if bot else "trashbase"
+        before = f"# BEGIN managed by system_setup_cli.py ({tag})\n[all]\n"
+        after = "# END managed by system_setup_cli.py\n"
+        managed_block = before + config_add + after
+
+        # Strip any previous managed block before re-appending.
+        old_block_rx = re.compile(
+            r"# BEGIN managed by system_setup_cli\.py[^\n]*\n"
+            r".*?"
+            r"# END managed by system_setup_cli\.py[^\n]*\s*",
+            re.DOTALL,
+        )
+
+        config_txt_path = Path("/boot/firmware/config.txt")
+        original = config_txt_path.read_text()
+        new_text = old_block_rx.sub("", original) + managed_block
+        config_files[config_txt_path] = new_text
+
+    #
+    # other config files
+    #
 
     # udev rule for StreamDeck
     config_files[Path("/etc/udev/rules.d/10-streamdeck.rules")] = (
@@ -100,6 +132,11 @@ def main(base: bool, bot: bool, desk: bool) -> None:
             }
         """).lstrip()
 
+    #
+    # update system config files
+    #
+
+    udev_restart_required = False
     for path, contents in config_files.items():
         logging.info("⚙️ Checking %s", path)
         if not (path.is_file() and path.read_text() == contents):
@@ -112,6 +149,7 @@ def main(base: bool, bot: bool, desk: bool) -> None:
                     sub.run("sudo", "mkdir", "-p", path.parent)
                 sub.run("sudo", "tee", path, input=contents, encoding="utf8")
 
+            reboot_required |= Path("/boot") in path.parents
             udev_restart_required |= Path("/etc/udev") in path.parents
 
     if udev_restart_required:
