@@ -178,9 +178,11 @@ def main(base: bool, bot: bool, desk: bool) -> None:
         if user_unit_path.resolve() != source_unit_path:
             sub.run("systemctl", "--user", "enable", source_unit_path)
 
-        status_lines = sub.stdout_lines(
-            "systemctl", "--user", "show", service_name
-        )
+        # always run this just in case things changed
+        sub.run("systemctl", "--user", "daemon-reload")
+
+        status_command = ["systemctl", "--user", "show", service_name]
+        status_lines = sub.stdout_lines(*status_command)
         if "ActiveState=active" not in status_lines:
             sub.run("systemctl", "--user", "restart", service_name)
 

@@ -57,10 +57,19 @@ class BotDisplayDriver:
     def set_display(self, eye: int, request: dict):
         worker = self.eye_workers[eye]
         try:
-            worker.stdin.write(f"{json.dumps(request)}\n")
             worker.poll()
+            worker.stdin.write(f"{json.dumps(request)}\n")
+        except BrokenPipeError:
+            # don't exit yet; detect and handle process death below
+            _log.critical(f"Broken pipe sending to eye {eye} worker")
         except (OSError, subprocess.SubprocessError):
-            raise DisplayError(f"Error sending display {eye} worker command")
+            raise DisplayError(f"Error sending to eye {eye} worker")
 
         if worker.returncode is not None:
-            raise DisplayError(f"Display {eye} died: {worker.returncode}")
+            # Exit codes 42 (Ctrl-Q) and 1 (Ctrl-R) are user-requested exits.
+            # Propagate the exit code (systemctl stops the service on 42).
+            if (code := worker.returncode) in (42, 1):
+                _log.critical(f"Propagating exit {code} from eye {eye} worker")
+                raise SystemExit(code)
+
+            raise DisplayError(f"Eye {eye} worker died: {worker.returncode}")

@@ -73,6 +73,14 @@ def main(debug, console, screen):
             logging.info("❌ QUIT event received, stopping")
             break
 
+        elif ev.type == pygame.KEYDOWN and (ev.mod & pygame.KMOD_CTRL):
+            if ev.key == pygame.K_q:
+                logging.info("🚪 Ctrl-Q pressed, exiting to desktop")
+                sys.exit(42)
+            elif ev.key == pygame.K_r:
+                logging.info("🔄 Ctrl-R pressed, restarting")
+                sys.exit(1)
+
         elif ev.type == STDIN_LINE_EVENT:
             if ev.text is None:
                 logging.info("❌ EOF from stdin, stopping")

@@ -54,6 +54,13 @@ class BaseDisplayDriver:
             if ev.type == pygame.QUIT:
                 logging.info("❌ QUIT event received, stopping")
                 raise SystemExit()
+            elif ev.type == pygame.KEYDOWN and (ev.mod & pygame.KMOD_CTRL):
+                if ev.key == pygame.K_q:
+                    logging.info("🚪 Ctrl-Q pressed, exiting to desktop")
+                    raise SystemExit(42)
+                elif ev.key == pygame.K_r:
+                    logging.info("🔄 Ctrl-R pressed, restarting")
+                    raise SystemExit(1)
 
         if req == self._request:
             return
