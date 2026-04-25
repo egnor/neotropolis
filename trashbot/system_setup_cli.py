@@ -61,8 +61,7 @@ def main(base: bool, bot: bool, desk: bool) -> None:
                 *[f"video=HDMI-A-{n}:1024x768MR@30e" for n in (1, 2)],
             ]
 
-        new_boot = " ".join(boot_args)
-        config_files[boot_line_path] = new_boot = " ".join(boot_args)
+        config_files[boot_line_path] = " ".join(boot_args)
 
     #
     # /boot/firmware/config.txt managed block
