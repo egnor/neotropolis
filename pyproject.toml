@@ -17,6 +17,7 @@ dependencies = [
   "ok-subprocess-defaults>=0.2",
   "streamdeck>=0.9.8",
   "pi5neo>=1.1.0",
+  "gpiod>=2.4.2",
 ]
 description = "Neotropolis project code"
 name = "egnor-neotropolis"
