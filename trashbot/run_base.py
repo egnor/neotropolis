@@ -119,23 +119,13 @@ def transmit_command(
         channels[4] = from_frac(-1)  # disarm until RX round trip (stale OK)
     elif rx_word != "OK":
         # zero motion (but arm) when RX is not OK
-        command_status = "RX!OK"
-    elif (left_y := gamepad.recent.get("LY")) is None:
-        command_status = "!LY"
-    elif (right_x := gamepad.recent.get("RX")) is None:
         command_status = "!RX"
     elif not any(gamepad.recent.get(b) for b in ("LB", "LT", "RB", "RT")):
         command_status = "!Trig"  # zero motion (but arm) without trigger
-    elif prev_status != "OK" and left_y > 0.05:
-        command_status = "LY+"
-    elif prev_status != "OK" and left_y < -0.05:
-        command_status = "LY-"
-    elif prev_status != "OK" and right_x > 0.05:
-        command_status = "RX+"
-    elif prev_status != "OK" and right_x < -0.05:
-        command_status = "RX-"
     else:
         command_status = "OK"
+        left_y = gamepad.recent.get("LY", 0)
+        right_x = gamepad.recent.get("RY", 0)
         throttle = -left_y if abs(left_y) > 0.05 else 0
         rotate = right_x if abs(right_x) > 0.05 else 0
         channels[0] = from_frac(rotate)

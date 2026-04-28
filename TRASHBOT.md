@@ -94,17 +94,13 @@ needs config.
 | 3     | throttle    | drive throttle (fwd/back)  | 10 bit, every packet    |
 | 4     | rudder      | right eye emoji            | 10 bit, every packet    |
 | 5     | aux1        | arm                        | 1 bit, every packet     |
-| 6     | aux2        | radio PTT (bool)           | 6 bit, round-robin ~/7  |
-| 7-12  | aux3-8      | LED effects / TBD          | 6 bit, round-robin ~/7  |
+| 6     | aux2        | speed boost                | 6 bit, round-robin ~/7  |
+| 7     | aux3        | radio PTT (bool)           | 6 bit, round-robin ~/7  |
+| 8-12  | aux348      | LED effects / TBD          | 6 bit, round-robin ~/7  |
 | 13-16 | -           | unused in Wide mode        | -                       |
 
-Encoding emoji on the stick channels (ele/rud) instead of splitting across
-aux channels is deliberate: 10 bit = 1024 slots fits the ~1400 base emoji
-count (after trimming skin tones, gender ZWJ sequences, and flags) with a
-little curation. A stock R/C controller will cycle through emoji when the
-right stick moves -- harmless -- and ch1/ch3 still drive the bot with no
-radio config. No commit protocol is needed: a dropped packet just stales
-the last value, never tears a split index.
+We get 1023 emoji choices by using the wide elevator/rudder channels.
+This means emoji flicker when driving with an RC handheld but that's fine.
 
 ### CRSF / ELRS bit encoding
 
